@@ -1,0 +1,387 @@
+{
+  "rigStates": [
+    "frame",
+    "installed",
+    "booting",
+    "mining",
+    "ready",
+    "overheat",
+    "broken",
+    "off"
+  ],
+  "rigFrames": 4,
+  "decorOrder": [
+    "decor_lamp",
+    "decor_fern",
+    "decor_gnome",
+    "decor_ribbon",
+    "decor_fountain",
+    "decor_lantern",
+    "decor_glowtree",
+    "decor_trophy"
+  ],
+  "portraits": [
+    "mia",
+    "bo",
+    "dex",
+    "vera",
+    "kai",
+    "ray",
+    "board",
+    "player"
+  ],
+  "assets": [
+    {
+      "key": "tiles",
+      "file": "tiles.png"
+    },
+    {
+      "key": "rig_steel",
+      "file": "rig_steel.png",
+      "frameWidth": 16,
+      "frameHeight": 28
+    },
+    {
+      "key": "rig_magenta",
+      "file": "rig_magenta.png",
+      "frameWidth": 16,
+      "frameHeight": 28
+    },
+    {
+      "key": "rig_mint",
+      "file": "rig_mint.png",
+      "frameWidth": 16,
+      "frameHeight": 28
+    },
+    {
+      "key": "rig_gold",
+      "file": "rig_gold.png",
+      "frameWidth": 16,
+      "frameHeight": 28
+    },
+    {
+      "key": "slot",
+      "file": "slot.png",
+      "frameWidth": 16,
+      "frameHeight": 16
+    },
+    {
+      "key": "coin",
+      "file": "coin.png",
+      "frameWidth": 10,
+      "frameHeight": 10
+    },
+    {
+      "key": "sparkle",
+      "file": "sparkle.png",
+      "frameWidth": 7,
+      "frameHeight": 7
+    },
+    {
+      "key": "steam",
+      "file": "steam.png",
+      "frameWidth": 8,
+      "frameHeight": 8
+    },
+    {
+      "key": "cooling",
+      "file": "cooling.png",
+      "frameWidth": 16,
+      "frameHeight": 22
+    },
+    {
+      "key": "drone",
+      "file": "drone.png",
+      "frameWidth": 12,
+      "frameHeight": 10
+    },
+    {
+      "key": "cat",
+      "file": "cat.png",
+      "frameWidth": 14,
+      "frameHeight": 10
+    },
+    {
+      "key": "light64",
+      "file": "light64.png"
+    },
+    {
+      "key": "light128",
+      "file": "light128.png"
+    },
+    {
+      "key": "light32",
+      "file": "light32.png"
+    },
+    {
+      "key": "player_body",
+      "file": "player_body.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hair_ink",
+      "file": "hair_ink.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hair_chestnut",
+      "file": "hair_chestnut.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hair_copper",
+      "file": "hair_copper.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hair_honey",
+      "file": "hair_honey.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hair_mint",
+      "file": "hair_mint.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hair_magenta",
+      "file": "hair_magenta.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hat_cap",
+      "file": "hat_cap.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hat_beanie",
+      "file": "hat_beanie.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hat_headset",
+      "file": "hat_headset.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hat_straw",
+      "file": "hat_straw.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "hat_crown",
+      "file": "hat_crown.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "npc_mia",
+      "file": "npc_mia.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "npc_bo",
+      "file": "npc_bo.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "npc_dex",
+      "file": "npc_dex.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "npc_vera",
+      "file": "npc_vera.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "npc_kai",
+      "file": "npc_kai.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "portraits",
+      "file": "portraits.png",
+      "frameWidth": 32,
+      "frameHeight": 32
+    },
+    {
+      "key": "bld_hardware",
+      "file": "bld_hardware.png"
+    },
+    {
+      "key": "bld_cafe",
+      "file": "bld_cafe.png"
+    },
+    {
+      "key": "bld_repair",
+      "file": "bld_repair.png"
+    },
+    {
+      "key": "bld_garage",
+      "file": "bld_garage.png"
+    },
+    {
+      "key": "bld_substation",
+      "file": "bld_substation.png"
+    },
+    {
+      "key": "bld_warehouse",
+      "file": "bld_warehouse.png"
+    },
+    {
+      "key": "bld_datacenter",
+      "file": "bld_datacenter.png"
+    },
+    {
+      "key": "prop_tree",
+      "file": "prop_tree.png"
+    },
+    {
+      "key": "prop_tree2",
+      "file": "prop_tree2.png"
+    },
+    {
+      "key": "prop_pine",
+      "file": "prop_pine.png"
+    },
+    {
+      "key": "prop_bush",
+      "file": "prop_bush.png"
+    },
+    {
+      "key": "prop_lamp",
+      "file": "prop_lamp.png"
+    },
+    {
+      "key": "prop_bench",
+      "file": "prop_bench.png"
+    },
+    {
+      "key": "prop_statue",
+      "file": "prop_statue.png"
+    },
+    {
+      "key": "holocoin",
+      "file": "holocoin.png",
+      "frameWidth": 20,
+      "frameHeight": 20
+    },
+    {
+      "key": "prop_board",
+      "file": "prop_board.png"
+    },
+    {
+      "key": "prop_mailbox",
+      "file": "prop_mailbox.png"
+    },
+    {
+      "key": "prop_mailbox_empty",
+      "file": "prop_mailbox_empty.png"
+    },
+    {
+      "key": "prop_box",
+      "file": "prop_box.png"
+    },
+    {
+      "key": "prop_box_open",
+      "file": "prop_box_open.png"
+    },
+    {
+      "key": "prop_sign",
+      "file": "prop_sign.png"
+    },
+    {
+      "key": "prop_stand",
+      "file": "prop_stand.png"
+    },
+    {
+      "key": "prop_mat",
+      "file": "prop_mat.png"
+    },
+    {
+      "key": "prop_rock",
+      "file": "prop_rock.png"
+    },
+    {
+      "key": "prop_reeds",
+      "file": "prop_reeds.png"
+    },
+    {
+      "key": "prop_house1",
+      "file": "prop_house1.png"
+    },
+    {
+      "key": "prop_house2",
+      "file": "prop_house2.png"
+    },
+    {
+      "key": "prop_house3",
+      "file": "prop_house3.png"
+    },
+    {
+      "key": "prop_pole",
+      "file": "prop_pole.png"
+    },
+    {
+      "key": "prop_signpost",
+      "file": "prop_signpost.png"
+    },
+    {
+      "key": "prop_crates",
+      "file": "prop_crates.png"
+    },
+    {
+      "key": "prop_barrel",
+      "file": "prop_barrel.png"
+    },
+    {
+      "key": "prop_flowerbed",
+      "file": "prop_flowerbed.png"
+    },
+    {
+      "key": "prop_well",
+      "file": "prop_well.png"
+    },
+    {
+      "key": "prop_bush2",
+      "file": "prop_bush2.png"
+    },
+    {
+      "key": "prop_bollard",
+      "file": "prop_bollard.png"
+    },
+    {
+      "key": "prop_shadow",
+      "file": "prop_shadow.png"
+    },
+    {
+      "key": "decor",
+      "file": "decor.png",
+      "frameWidth": 16,
+      "frameHeight": 24
+    },
+    {
+      "key": "icons",
+      "file": "icons.png",
+      "frameWidth": 16,
+      "frameHeight": 16
+    }
+  ]
+}

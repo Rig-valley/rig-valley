@@ -1,0 +1,10 @@
+node_modules
+dist
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+client/public/assets
+client/public/maps
+pnpm-lock.yaml
+.data

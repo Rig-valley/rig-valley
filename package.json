@@ -1,0 +1,37 @@
+{
+  "name": "rig-valley",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Rig Valley — a cozy pixel-art farming game where the crops are crypto-mining rigs.",
+  "type": "module",
+  "packageManager": "pnpm@10.33.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @rig-valley/server --filter @rig-valley/client --filter @rig-valley/admin dev",
+    "dev:server": "pnpm --filter @rig-valley/server dev",
+    "dev:client": "pnpm --filter @rig-valley/client dev",
+    "dev:admin": "pnpm --filter @rig-valley/admin dev",
+    "art": "pnpm --filter @rig-valley/client art",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test -vv"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}

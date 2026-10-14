@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Rig Valley — a cozy pixel-art farming game where the crops are mining rigs."
+    />
+    <meta name="theme-color" content="#0b0a1a" />
+    <title>Rig Valley</title>
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <style>
+      /* Shown until the game has booted, so a slow first load never looks broken. */
+      #boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #0b0a1a;
+        color: #cdd2ef;
+        font:
+          700 16px/1 ui-monospace,
+          Consolas,
+          monospace;
+        letter-spacing: 0.2em;
+      }
+      #boot-loader b {
+        font-size: 28px;
+        color: #ff52dc;
+        text-shadow: 3px 3px 0 #2a2b63;
+      }
+      #boot-loader b span {
+        color: #3ff2ff;
+      }
+      #boot-loader .bar {
+        width: 180px;
+        height: 10px;
+        border: 2px solid #3d438a;
+        background: repeating-linear-gradient(90deg, #3ff2ff 0 8px, transparent 8px 12px) 0 0 / 36px
+          100% repeat-y;
+        animation: boot-bar 0.8s steps(6) infinite;
+      }
+      @keyframes boot-bar {
+        to {
+          background-position: 36px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game" aria-label="Rig Valley game world"></div>
+      <div id="ui-frame"><div id="ui"></div></div>
+    </div>
+    <div id="boot-loader" role="status" aria-live="polite">
+      <b>RIG <span>VALLEY</span></b>
+      <div class="bar"></div>
+      <div>LOADING…</div>
+    </div>
+    <div class="unsupported" role="alert">
+      Rig Valley is made for desktop browsers. Please open it on a computer with a bigger window.
+    </div>
+    <noscript>Rig Valley needs JavaScript to run.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

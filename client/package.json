@@ -1,0 +1,32 @@
+{
+  "name": "@rig-valley/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "art": "tsx scripts/art/index.ts && tsx scripts/map.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/silkscreen": "^5.3.0",
+    "@fontsource/tiny5": "^5.3.0",
+    "@rig-valley/shared": "workspace:*",
+    "@scure/bip39": "^2.4.0",
+    "@wagmi/core": "^3.6.5",
+    "phaser": "3.90.0",
+    "viem": "^2.57.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^5.0.3"
+  }
+}
