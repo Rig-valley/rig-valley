@@ -34,6 +34,8 @@ const schema = z.object({
   SIWE_URI: z.string().default('http://localhost:5173'),
   SESSION_DAYS: z.coerce.number().default(14),
   COOKIE_SECURE: bool,
+  /** Serve the built game (client/dist) at / and the admin panel (admin/dist) at /admin/. */
+  SERVE_STATIC: bool,
 
   ADMIN_TOKEN: z.string().min(16, 'ADMIN_TOKEN must be at least 16 characters').optional(),
 

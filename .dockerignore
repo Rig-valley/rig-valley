@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+!.env.example
+.data
+.claude
+**/node_modules
+**/dist
+contracts
+*.log

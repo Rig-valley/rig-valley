@@ -16,8 +16,8 @@ import {MockStockToken} from "../src/mocks/MockStockToken.sol";
 ///   VOUCHER_SIGNER_ADDRESS game server voucher-signing address
 ///   PAUSER_ADDRESS         emergency pause key (optional)
 ///   PERIOD_SECONDS         payout period length (default 1 day)
-///   PERIOD_CEILING         max payout per period in token units
-///   MAX_CLAIM              max payout per voucher in token units
+///   PERIOD_CEILING         max payout per period in token units (required on mainnet)
+///   MAX_CLAIM              max payout per voucher in token units (required on mainnet)
 ///   MOCK_FUND_AMOUNT       mock only: amount minted to the distributor
 contract Deploy is Script {
     function run() external {
@@ -30,6 +30,13 @@ contract Deploy is Script {
         uint256 period = vm.envOr("PERIOD_SECONDS", uint256(1 days));
         uint256 ceiling = vm.envOr("PERIOD_CEILING", uint256(500e18));
         uint256 maxClaim = vm.envOr("MAX_CLAIM", uint256(50e18));
+        if (block.chainid == 4663) {
+            // Mainnet: real money. No defaults, and the treasury must not be the hot deployer key.
+            ceiling = vm.envUint("PERIOD_CEILING");
+            maxClaim = vm.envUint("MAX_CLAIM");
+            require(owner != deployer, "Mainnet: OWNER_ADDRESS must be the treasury wallet");
+            require(maxClaim <= ceiling, "MAX_CLAIM above PERIOD_CEILING");
+        }
 
         vm.startBroadcast(deployerKey);
         address tokenAddr;

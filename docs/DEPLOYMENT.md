@@ -13,6 +13,35 @@ These are configuration, not code. Nothing in the repo hard-codes them.
 | Gas sponsorship                                         | `RELAYER_PRIVATE_KEY`                                   | Implemented as a relayer that only calls `claim`. An ERC-4337 paymaster can replace it later; the contract already accepts claims from any sender. Without a relayer, players submit the claim themselves and pay gas. |
 | Jurisdiction / eligibility                              | Terms of Service                                        | The game shows a short eligibility note in Settings. Add proper Terms before launch.                                                                                                                                   |
 
+## Robinhood Chain mainnet values (verified 2026-10-15)
+
+Checked against docs.robinhood.com and directly on-chain.
+
+| Setting                  | Value                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `CHAIN_ID`               | `4663`                                                                                                    |
+| `RPC_URL`                | `https://rpc.mainnet.chain.robinhood.com` (public, rate-limited; use a provider for heavy load)           |
+| `EXPLORER_URL`           | `https://robinhoodchain.blockscout.com`                                                                   |
+| `NVDA_TOKEN_ADDRESS`     | `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC` (NVIDIA • Robinhood Token, 18 decimals)                      |
+| `PRICE_FEED`             | `chainlink`                                                                                               |
+| `CHAINLINK_FEED_ADDRESS` | `0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15` (RHNVDA / USD, 8 decimals, per-token price incl. multiplier) |
+| `PRICE_MAX_AGE_SECONDS`  | `259200` (feeds update 24/5; 72 h covers weekends)                                                        |
+
+Stock Tokens may not be offered, sold or delivered to the U.S. / U.S. Persons, and are restricted in
+other jurisdictions (docs.robinhood.com/rhj/restricted-jurisdictions). Decide your eligibility policy before launch.
+
+## Railway (single service)
+
+The `Dockerfile` builds the game and admin panel; the server serves the game at `/`, the admin
+panel at `/admin/` and the API at `/api` (`SERVE_STATIC=true`).
+
+1. `railway login`, `railway init` (or link the project), add the PostgreSQL plugin.
+2. Variables: `DATABASE_URL` (from the plugin), `ADMIN_TOKEN`, `COOKIE_SECURE=true`,
+   `SIWE_DOMAIN=<your-domain>`, `SIWE_URI=https://<your-domain>`, `CORS_ORIGINS=https://<your-domain>`,
+   the chain values above, `VOUCHER_SIGNER_KEY`, `RELAYER_PRIVATE_KEY` (from
+   `pnpm --filter @rig-valley/server keys`, stored in `.data/mainnet-keys.env`), `DISTRIBUTOR_ADDRESS`.
+3. `railway up`, then generate a domain and re-check the SIWE/CORS values match it exactly.
+
 ## 2. Contract deployment
 
 ```bash
@@ -27,6 +56,12 @@ forge script script/Deploy.s.sol --rpc-url robinhood_testnet --broadcast
 Environment for the script: `DEPLOYER_PRIVATE_KEY`, `TOKEN_ADDRESS`, `OWNER_ADDRESS` (treasury, hardware wallet), `VOUCHER_SIGNER_ADDRESS` (server), `PAUSER_ADDRESS` (optional emergency key — the relayer address works well), `PERIOD_SECONDS`, `PERIOD_CEILING`, `MAX_CLAIM` (token units).
 
 Recommended starting limits: period 1 day, ceiling ≈ expected daily payouts × 2, max claim ≈ $50 worth.
+On mainnet (chain 4663) the script refuses to run without explicit `PERIOD_CEILING` / `MAX_CLAIM`, or with
+the deployer as owner. Limits can be changed later with `setLimits` from the treasury.
+
+```bash
+forge script script/Deploy.s.sol --rpc-url robinhood_mainnet --broadcast
+```
 
 Then from the **treasury** wallet: transfer NVDA to the distributor (weekly top-ups per MASTERPLAN §10). Unused funds can be pulled back with `withdrawBack`.
 

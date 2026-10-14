@@ -4,6 +4,9 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ZodError } from 'zod';
 import type { Hex } from 'viem';
 import {
@@ -312,5 +315,40 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     admin.player((req.params as { address: string }).address),
   );
 
+  if (cfg.SERVE_STATIC) await serveStatic(app);
   return app;
+}
+
+/**
+ * One service, one origin: the game at /, the admin panel at /admin/, the API at /api.
+ * Keeps the session cookie and SIWE domain simple in production.
+ */
+async function serveStatic(app: FastifyInstance): Promise<void> {
+  const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const clientDir = join(repo, 'client/dist');
+  const adminDir = join(repo, 'admin/dist');
+  app.addHook('onSend', async (req, reply) => {
+    if (req.url.startsWith('/api/')) return;
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // Vite fingerprints JS/CSS; everything else revalidates so updates show up right away.
+    if (/\/assets\/index-[\w-]+\.(js|css)$/.test(req.url))
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+  });
+  await app.register(fastifyStatic, { root: clientDir, prefix: '/', cacheControl: false });
+  await app.register(fastifyStatic, {
+    root: adminDir,
+    prefix: '/admin/',
+    decorateReply: false,
+    cacheControl: false,
+  });
+  app.get('/admin', (_req, reply) => reply.redirect('/admin/'));
+  app.setNotFoundHandler((req, reply) => {
+    if (req.method !== 'GET' || req.url.startsWith('/api/'))
+      return reply.code(404).send({ error: 'not_found', message: 'Not found.' });
+    return req.url.startsWith('/admin/')
+      ? reply.sendFile('index.html', adminDir)
+      : reply.sendFile('index.html', clientDir);
+  });
 }
