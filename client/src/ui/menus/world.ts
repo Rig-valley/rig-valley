@@ -66,11 +66,8 @@ export function showMorning(s: SleepSummary): void {
   if (s.bill !== null)
     lines.push(h('p', null, `Weekly power bill paid: ${formatInt(s.bill)} Coins.`));
   lines.push(
-    h(
-      'p',
-      { class: 'dim' },
-      `Today: ${WEATHER_INFO[s.weather].name}. ${WEATHER_INFO[s.forecast].forecast}`,
-    ),
+    h('p', null, `Today: ${WEATHER_INFO[s.weather].name} — ${WEATHER_INFO[s.weather].effect}`),
+    h('p', { class: 'dim' }, WEATHER_INFO[s.forecast].forecast),
   );
   lines.push(h('p', { class: 'dim' }, "Check your mailbox for today's letters."));
   const go = h('button', { class: 'btn primary big', type: 'button' }, 'Start the day');

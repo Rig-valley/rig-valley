@@ -7,42 +7,56 @@ export type Weather = (typeof WEATHERS)[number];
 
 export const WEATHER_INFO: Record<
   Weather,
-  { name: string; temp: number; dust: boolean; outageChance: number; forecast: string }
+  {
+    name: string;
+    temp: number;
+    dust: boolean;
+    outageChance: number;
+    /** What this weather means for your rigs on the day it happens. */
+    effect: string;
+    /** One sentence announcing it for tomorrow (morning card, HUD banner, Bo's tips). */
+    forecast: string;
+  }
 > = {
   sunny: {
     name: 'Sunny',
     temp: 0,
     dust: true,
     outageChance: 0,
-    forecast: 'Sunny tomorrow. A normal, happy day.',
+    effect: 'Clear skies, a normal day for your rigs.',
+    forecast: 'Sunny tomorrow — a calm day for your rigs.',
   },
   rainy: {
     name: 'Rainy',
     temp: -3,
     dust: false,
     outageChance: 0,
-    forecast: 'Rain tomorrow. No dust will settle on your rigs.',
+    effect: 'Rigs run a little cooler, and no dust settles on them tonight.',
+    forecast: 'Rain tomorrow — no dust will settle on your rigs tomorrow night.',
   },
   heatwave: {
     name: 'Heatwave',
     temp: 12,
     dust: true,
     outageChance: 0,
-    forecast: 'Heatwave tomorrow. Prepare your cooling.',
+    effect: 'Rigs run much hotter today. Keep an eye on your cooling.',
+    forecast: 'Heatwave tomorrow — get your cooling ready.',
   },
   storm: {
     name: 'Storm',
     temp: -2,
     dust: true,
     outageChance: 0.4,
-    forecast: 'Storm tomorrow. The power might go out tonight.',
+    effect: 'The power may go out tonight.',
+    forecast: 'Storm tomorrow — the power may go out tomorrow night.',
   },
   snow: {
     name: 'Snow',
     temp: -8,
     dust: true,
     outageChance: 0.15,
-    forecast: 'Snow tomorrow. Rigs will run cooler, Power gets shaky.',
+    effect: 'Rigs run cooler, but the power may flicker tonight.',
+    forecast: 'Snow tomorrow — rigs run cooler, but the power may flicker.',
   },
 };
 
