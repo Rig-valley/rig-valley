@@ -1,0 +1,11 @@
+# Only what the Dockerfile needs goes up to Railway.
+.git
+.data
+.env
+.env.*
+!.env.example
+.claude
+**/node_modules
+**/dist
+contracts
+*.log
