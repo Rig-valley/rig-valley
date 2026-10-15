@@ -131,9 +131,13 @@ export class WithdrawalService {
     const quote = await this.deps.price.get();
     if (!quote)
       fail('no_price', "We can't get the NVDA price right now. Please try again in a bit.");
-    // Never sign more than the contract will pay: it rejects claims above its limits.
-    const limits = await chain.claimLimits().catch(() => null);
-    if (!limits)
+    // Never sign more than the contract will pay: it rejects claims above its limits,
+    // and a claim the pool can't cover would only fail on-chain.
+    const [limits, poolBalance] = await Promise.all([
+      chain.claimLimits().catch(() => null),
+      chain.contractBalance().catch(() => null),
+    ]);
+    if (!limits || poolBalance === null)
       fail('chain_unavailable', "We can't reach Robinhood Chain right now. Please try again soon.");
 
     const { result } = await this.deps.game.withFarm(
@@ -158,6 +162,12 @@ export class WithdrawalService {
         let amount = pending;
         if (amount > limits.maxClaim) amount = limits.maxClaim;
         if (amount > limits.remaining) amount = limits.remaining;
+        if (amount > poolBalance) {
+          fail(
+            'pool_empty',
+            'The rewards pool is being topped up right now. Your rewards are safe — please try again later.',
+          );
+        }
         const usd = tokenUnitsToUsd(amount, quote.price, this.deps.decimals);
         if (amount <= 0n || usd < cfg.rewards.withdrawMinUsd) {
           fail(
