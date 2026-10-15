@@ -48,6 +48,8 @@ export interface ChainService {
   nonceUsed(nonce: bigint): Promise<boolean>;
   contractBalance(): Promise<bigint>;
   contractPaused(): Promise<boolean>;
+  /** On-chain payout limits: largest single claim, and what is left in the current period. */
+  claimLimits(): Promise<{ maxClaim: bigint; remaining: bigint }>;
   verifyWithdrawRequest(args: {
     player: Address;
     destination: Address;
@@ -154,6 +156,21 @@ export function createChainService(cfg: Config): ChainService | null {
         abi: DISTRIBUTOR_ABI,
         functionName: 'paused',
       }),
+    async claimLimits() {
+      const [maxClaim, remaining] = await Promise.all([
+        publicClient.readContract({
+          address: distributor,
+          abi: DISTRIBUTOR_ABI,
+          functionName: 'maxClaimAmount',
+        }),
+        publicClient.readContract({
+          address: distributor,
+          abi: DISTRIBUTOR_ABI,
+          functionName: 'remainingInPeriod',
+        }),
+      ]);
+      return { maxClaim, remaining };
+    },
     async verifyWithdrawRequest(a) {
       // Supports EOAs and smart-contract wallets (ERC-1271 / ERC-6492) via the public client.
       return publicClient.verifyTypedData({

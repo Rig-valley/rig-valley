@@ -131,6 +131,10 @@ export class WithdrawalService {
     const quote = await this.deps.price.get();
     if (!quote)
       fail('no_price', "We can't get the NVDA price right now. Please try again in a bit.");
+    // Never sign more than the contract will pay: it rejects claims above its limits.
+    const limits = await chain.claimLimits().catch(() => null);
+    if (!limits)
+      fail('chain_unavailable', "We can't reach Robinhood Chain right now. Please try again soon.");
 
     const { result } = await this.deps.game.withFarm(
       farmId,
@@ -142,12 +146,23 @@ export class WithdrawalService {
         );
         if (busy.rows.length)
           fail('in_flight', 'You already have a withdrawal on its way. Give it a minute.');
-        const amount = s.pendingUnits;
-        const usd = tokenUnitsToUsd(amount, quote.price, this.deps.decimals);
-        if (amount <= 0n || usd < cfg.rewards.withdrawMinUsd) {
+        const pending = s.pendingUnits;
+        const pendingUsd = tokenUnitsToUsd(pending, quote.price, this.deps.decimals);
+        if (pending <= 0n || pendingUsd < cfg.rewards.withdrawMinUsd) {
           fail(
             'below_min',
             `You need at least $${cfg.rewards.withdrawMinUsd.toFixed(2)} in rewards to withdraw.`,
+          );
+        }
+        // Cap to the per-claim limit and today's remaining budget; the rest stays pending.
+        let amount = pending;
+        if (amount > limits.maxClaim) amount = limits.maxClaim;
+        if (amount > limits.remaining) amount = limits.remaining;
+        const usd = tokenUnitsToUsd(amount, quote.price, this.deps.decimals);
+        if (amount <= 0n || usd < cfg.rewards.withdrawMinUsd) {
+          fail(
+            'daily_cap',
+            "Today's reward budget for all farmers is used up. Your rewards are safe — try again tomorrow.",
           );
         }
         const nonce = BigInt('0x' + randomBytes(16).toString('hex'));

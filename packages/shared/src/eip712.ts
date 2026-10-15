@@ -89,6 +89,13 @@ export const DISTRIBUTOR_ABI = [
     inputs: [],
     outputs: [{ type: 'uint256' }],
   },
+  {
+    type: 'function',
+    name: 'maxClaimAmount',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
   { type: 'function', name: 'pause', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   {
     type: 'event',

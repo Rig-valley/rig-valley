@@ -213,6 +213,29 @@ describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () 
     // $6 at $200 = 0.03 NVDA
     expect(after.state.rewards.pendingUnits).toBe(parseUnits('0.03', 18).toString());
 
+    // The contract caps a single claim at 0.026 NVDA ($5.20): the server signs only that much.
+    const owner = createWalletClient({
+      account: privateKeyToAccount(DEPLOYER),
+      chain,
+      transport: http(RPC),
+    });
+    await pub.waitForTransactionReceipt({
+      hash: await owner.writeContract({
+        address: distributor,
+        abi: [
+          {
+            type: 'function',
+            name: 'setLimits',
+            stateMutability: 'nonpayable',
+            inputs: [{ type: 'uint256' }, { type: 'uint256' }, { type: 'uint256' }],
+            outputs: [],
+          },
+        ],
+        functionName: 'setLimits',
+        args: [86400n, parseUnits('500', 18), parseUnits('0.026', 18)],
+      }),
+    });
+
     const prep = (
       await app.inject({
         method: 'POST',
@@ -252,7 +275,7 @@ describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () 
       functionName: 'balanceOf',
       args: [player.address],
     });
-    expect(bal).toBe(parseUnits('0.03', 18));
+    expect(bal).toBe(parseUnits('0.026', 18));
     expect(await pub.getBalance({ address: player.address })).toBe(0n); // player paid no gas
 
     await withdrawals.reconcile();
@@ -260,7 +283,8 @@ describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () 
       await app.inject({ method: 'GET', url: '/api/rewards', headers: { cookie } })
     ).json() as RewardsDTO;
     expect(ov.withdrawals[0]!.status).toBe('confirmed');
-    expect(ov.summary.pendingUnits).toBe('0');
+    // The part above the cap stays pending for the next withdrawal.
+    expect(ov.summary.pendingUnits).toBe(parseUnits('0.004', 18).toString());
 
     // Replaying the same request is refused.
     const replay = await app.inject({
