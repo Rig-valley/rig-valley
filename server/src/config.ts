@@ -41,7 +41,7 @@ const schema = z.object({
 
   // --- Chain (Robinhood Chain). VERIFY all values against official docs. ---
   CHAIN_ID: z.coerce.number().default(46630),
-  CHAIN_NAME: z.string().default('Robinhood Chain Testnet'),
+  CHAIN_NAME: z.string().default('Robinhood Chain'),
   RPC_URL: z.string().optional(),
   /** RPC URL handed to browsers (defaults to RPC_URL). Don't expose a private/keyed RPC here. */
   PUBLIC_RPC_URL: z.string().optional(),

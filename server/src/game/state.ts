@@ -195,44 +195,56 @@ export async function loadState(q: Queryable, farmId: number, lock = true): Prom
   const f = fr.rows[0];
   if (!f) fail('no_farm', "We couldn't find your farm.", 404);
 
-  const [rigs, cooling, decor, inv, rel, quests, mail, pending] = await Promise.all([
-    q.query<Record<string, unknown>>('SELECT * FROM rigs WHERE farm_id = $1 ORDER BY id', [farmId]),
-    q.query<{ tile_x: number; tile_y: number; item_id: string }>(
-      'SELECT * FROM cooling_units WHERE farm_id = $1',
-      [farmId],
-    ),
-    q.query<{ tile_x: number; tile_y: number; item_id: string }>(
-      'SELECT * FROM decor WHERE farm_id = $1',
-      [farmId],
-    ),
-    q.query<{ item_id: string; qty: number }>(
-      'SELECT item_id, qty FROM inventory WHERE farm_id = $1',
-      [farmId],
-    ),
-    q.query<{ npc_id: NpcId; points: number }>(
-      'SELECT npc_id, points FROM npc_relations WHERE farm_id = $1',
-      [farmId],
-    ),
-    q.query<{
-      quest_id: string;
-      state: 'active' | 'done';
-      progress: number[];
-      created_day: number;
-    }>('SELECT * FROM quests WHERE farm_id = $1', [farmId]),
-    q.query<{
-      id: number;
-      day: number;
-      template_id: string;
-      params: Record<string, string | number>;
-      read: boolean;
-    }>(
-      'SELECT id, day, template_id, params, read FROM mail WHERE farm_id = $1 ORDER BY id DESC LIMIT 60',
-      [farmId],
-    ),
-    q.query<{ amount: string; usd_backlog: string }>(
-      'SELECT amount::text AS amount, usd_backlog::text AS usd_backlog FROM nvda_pending WHERE farm_id = $1',
-      [farmId],
-    ),
+  // One query at a time: inside a transaction they share a single connection (pg refuses
+  // concurrent queries on one client).
+  const [rigs, cooling, decor, inv, rel, quests, mail, pending] = await inSequence([
+    () =>
+      q.query<Record<string, unknown>>('SELECT * FROM rigs WHERE farm_id = $1 ORDER BY id', [
+        farmId,
+      ]),
+    () =>
+      q.query<{ tile_x: number; tile_y: number; item_id: string }>(
+        'SELECT * FROM cooling_units WHERE farm_id = $1',
+        [farmId],
+      ),
+    () =>
+      q.query<{ tile_x: number; tile_y: number; item_id: string }>(
+        'SELECT * FROM decor WHERE farm_id = $1',
+        [farmId],
+      ),
+    () =>
+      q.query<{ item_id: string; qty: number }>(
+        'SELECT item_id, qty FROM inventory WHERE farm_id = $1',
+        [farmId],
+      ),
+    () =>
+      q.query<{ npc_id: NpcId; points: number }>(
+        'SELECT npc_id, points FROM npc_relations WHERE farm_id = $1',
+        [farmId],
+      ),
+    () =>
+      q.query<{
+        quest_id: string;
+        state: 'active' | 'done';
+        progress: number[];
+        created_day: number;
+      }>('SELECT * FROM quests WHERE farm_id = $1', [farmId]),
+    () =>
+      q.query<{
+        id: number;
+        day: number;
+        template_id: string;
+        params: Record<string, string | number>;
+        read: boolean;
+      }>(
+        'SELECT id, day, template_id, params, read FROM mail WHERE farm_id = $1 ORDER BY id DESC LIMIT 60',
+        [farmId],
+      ),
+    () =>
+      q.query<{ amount: string; usd_backlog: string }>(
+        'SELECT amount::text AS amount, usd_backlog::text AS usd_backlog FROM nvda_pending WHERE farm_id = $1',
+        [farmId],
+      ),
   ]);
 
   const farm: FarmRow = {
@@ -561,4 +573,13 @@ export async function nextRigId(q: Queryable): Promise<number> {
     "SELECT nextval(pg_get_serial_sequence('rigs','id')) AS id",
   );
   return Number(r.rows[0]!.id);
+}
+
+/** Runs query thunks one after another, keeping each result's type. */
+async function inSequence<T extends unknown[]>(
+  fns: [...{ [K in keyof T]: () => Promise<T[K]> }],
+): Promise<T> {
+  const out: unknown[] = [];
+  for (const fn of fns) out.push(await (fn as () => Promise<unknown>)());
+  return out as T;
 }
