@@ -36,6 +36,8 @@ const schema = z.object({
   COOKIE_SECURE: bool,
   /** Serve the built game (client/dist) at / and the admin panel (admin/dist) at /admin/. */
   SERVE_STATIC: bool,
+  /** Public host (e.g. rigvalley.com). Requests to any other host get a 301 to it. */
+  CANONICAL_HOST: z.string().optional(),
 
   ADMIN_TOKEN: z.string().min(16, 'ADMIN_TOKEN must be at least 16 characters').optional(),
 

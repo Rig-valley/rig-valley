@@ -74,6 +74,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cors, { origin: origins, credentials: true });
   await app.register(rateLimit, { max: 600, timeWindow: '1 minute' });
 
+  // One public address: other hosts (e.g. the *.up.railway.app domain) redirect to it, so
+  // sign-in (SIWE) and the session cookie always use the same origin.
+  if (cfg.CANONICAL_HOST) {
+    const canonical = cfg.CANONICAL_HOST.toLowerCase();
+    app.addHook('onRequest', async (req, reply) => {
+      const host = (req.headers.host ?? '').split(':')[0]!.toLowerCase();
+      if (!host || host === canonical || host === 'localhost' || host === '127.0.0.1') return;
+      if (req.method !== 'GET' && req.method !== 'HEAD') return;
+      return reply.redirect(`https://${canonical}${req.url}`, 301);
+    });
+  }
+
   // CSRF defense: state-changing requests must come from an allowed origin (or same-origin with no Origin header).
   app.addHook('onRequest', async (req, reply) => {
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
