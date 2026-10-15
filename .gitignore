@@ -7,7 +7,7 @@ dist/
 *.log
 contracts/out/
 contracts/cache/
-contracts/broadcast/*/31337/
+contracts/broadcast/
 .DS_Store
 # Local editor/assistant tooling
 .claude/
