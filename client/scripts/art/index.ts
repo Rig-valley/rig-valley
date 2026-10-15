@@ -38,7 +38,7 @@ import {
   buildProps,
 } from './props.js';
 import { buildIcons } from './icons.js';
-import { Canvas } from './canvas.js';
+import type { Canvas } from './canvas.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = join(here, '../../public/assets');
@@ -88,16 +88,8 @@ save('decor', buildDecorSheet(), [16, 24]);
 const icons = buildIcons();
 save('icons', icons, [16, 16]);
 
-// Favicon: the CPU icon at 2×.
-{
-  const fav = new Canvas(32, 32);
-  for (let y = 0; y < 16; y++)
-    for (let x = 0; x < 16; x++) {
-      const c = icons.get(4 * 16 + x, y);
-      if (c) fav.rect(x * 2, y * 2, 2, 2, c);
-    }
-  fav.save(join(OUT, 'favicon.png'));
-}
+// The favicon (coin sprout) is hand-drawn: public/favicon.svg, with PNG copies in
+// public/assets/favicon.png and public/apple-touch-icon.png. Not generated here.
 
 writeFileSync(
   join(OUT, 'manifest.json'),
