@@ -498,7 +498,7 @@ const misc: Item[] = [
     price: 40,
     sellable: false,
     icon: 19,
-    description: 'Spare Power, wrapped with a bow.',
+    description: 'A boxed battery with a bow on top. Anyone who loves Power will love this gift.',
   },
   {
     id: 'lucky_charm',
@@ -595,7 +595,7 @@ const misc: Item[] = [
     special: true,
     sellable: false,
     icon: 29,
-    description: 'You beat Kai in a speed race. Shiny!',
+    description: 'A shiny trophy. Proof you are one of the best in the valley.',
   },
 
   // Rig paint

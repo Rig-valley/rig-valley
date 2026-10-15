@@ -19,9 +19,9 @@ const T: Record<string, Template> = {
     subject: 'The garage is yours',
     body:
       "Kid, the garage is yours now. Don't let the cats near the big building on the hill.\n\n" +
-      "There's a box by the garage door with an old CPU, a cloth and my lucky screwdriver. " +
+      "There's a box by the garage door with an old CPU, a cloth, a tube of thermal paste and my lucky screwdriver. " +
       'Put the CPU in the rig, switch it on, wipe the dust off and get some sleep. ' +
-      'Rigs are like tomatoes: they grow while you snooze.\n\n— Ray\n\nP.S. Feed the cats. They will not thank you.',
+      'Rigs are like tomatoes: they grow while you snooze.\n\n— Ray\n\nP.S. The cats think the big building is theirs. We will talk about that later.',
   }),
   mia_invite: () => ({
     from: 'Mia, Hardware Store',
@@ -30,7 +30,7 @@ const T: Record<string, Template> = {
       "Heard Ray's rig is humming again. Come into town and say hi. I sell parts, Bo sells coffee, Dex fixes what you break.\n\n" +
       'Quick tips, because nobody gave Ray any:\n' +
       '• Coins are for buying stuff in town. Rigs pay Coins every harvest.\n' +
-      '• Rigs also pay a tiny bit of NVDA stock. It piles up in your Rewards.\n' +
+      '• Rigs also pay a tiny bit of NVDA (NVIDIA Stock Tokens). It piles up in your Rewards.\n' +
       '• Save up $5 and send it to your wallet anytime. The Withdraw bar shows how close you are.\n\n— Mia',
   }),
   ray_room_to_grow: () => ({
@@ -52,7 +52,7 @@ const T: Record<string, Template> = {
     subject: 'About the cats',
     body:
       'Okay. Confession. The building on the hill is a data center. My data center. It is full of warm rigs. The cats found it.\n\n' +
-      'They will only move if you get them something warmer: a Heated Cat Bed. Mia sells them. Get 15 rigs running and the place is yours.\n\n— Ray',
+      'They will only move if you get them something warmer: a Heated Cat Bed. Mia sells them. Get 15 rigs running, then read the sign on the hill for the rest.\n\n— Ray',
   }),
   ray_legend: () => ({
     from: 'Uncle Ray',
@@ -77,7 +77,7 @@ const T: Record<string, Template> = {
   breaker_tripped: (p) => ({
     from: 'Vera, Power Substation',
     subject: 'Your breaker tripped',
-    body: `Your rigs pulled ${p.draw} W but your garage only handles ${p.capacity} W. The breaker tripped and everything stopped for the night.\n\nTurn off a rig or buy a Power upgrade from me. It resets every morning.\n\n— Vera`,
+    body: `Your rigs pulled ${p.draw} W but your garage only handles ${p.capacity} W. The breaker tripped and everything stopped for the night.\n\nTurn off a rig or buy a Power upgrade from me. The breaker resets every morning.\n\n— Vera`,
   }),
   outage: (p) => ({
     from: 'Vera, Power Substation',
@@ -112,7 +112,7 @@ const T: Record<string, Template> = {
   passed_out: (p) => ({
     from: "Bo, Miner's Café",
     subject: 'You fell asleep standing up',
-    body: `Found you snoring next to a rig at 2 AM. Dragged you home. The taxi was ${p.fee} Coins. You're welcome.\n\n— Bo`,
+    body: `Found you snoring next to a rig at 2 AM. Dragged you home. ${Number(p.fee) > 0 ? `The taxi was ${p.fee} Coins.` : "Your pockets were empty, so this one's on me."} You're welcome.\n\n— Bo`,
   }),
   withdraw_done: (p) => ({
     from: 'Rig Valley',

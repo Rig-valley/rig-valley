@@ -22,7 +22,7 @@ export const FESTIVALS: Record<Season, FestivalDef> = {
     season: 'spring',
     name: 'Spring Fair',
     description:
-      'The tidiest rig field in the valley wins a Spring Ribbon. Keep the dust down and the Health up!',
+      'The tidiest rig field in the valley wins a Spring Ribbon. Have at least 2 rigs running, keep the dust down and the Health up!',
     dayOfSeason: FESTIVAL_DAY,
     prize: 'decor_ribbon',
     consolation: { itemId: 'cookie', qty: 3 },
@@ -31,7 +31,8 @@ export const FESTIVALS: Record<Season, FestivalDef> = {
     id: 'cooldown_festival',
     season: 'summer',
     name: 'Cool Down Festival',
-    description: 'Down by the river. The coolest-running rigs win the Cool Fountain.',
+    description:
+      'The coolest-running rigs win the Cool Fountain. Have at least 2 rigs running and keep them under 60°C!',
     dayOfSeason: FESTIVAL_DAY,
     prize: 'decor_fountain',
     consolation: { itemId: 'coffee', qty: 2 },

@@ -6,6 +6,7 @@ import {
   WEATHER_INFO,
   calendar,
   findQuest,
+  energyAfterSleep,
   formatClock,
   formatInt,
   getItem,
@@ -23,7 +24,7 @@ export async function openSleep(): Promise<void> {
   const late = minute >= 24 * 60;
   const ok = await confirmModal(
     'Go to bed?',
-    `It's ${formatClock(minute)}. ${late ? 'Sleeping after midnight only refills part of your Energy.' : 'You will wake up at 6:00 AM with full Energy.'}\nYour rigs keep working overnight.`,
+    `It's ${formatClock(minute)}. ${late ? `It's past midnight, so you'll wake up at 6:00 AM with only ${energyAfterSleep(minute)} Energy.` : 'You will wake up at 6:00 AM with full Energy.'}\nYour rigs keep working overnight.`,
     'Sleep',
     'Not yet',
   );
@@ -41,7 +42,7 @@ export function showMorning(s: SleepSummary): void {
       h(
         'p',
         { class: 'bad' },
-        `You passed out at 2:00 AM! Bo found you and dragged you home (${s.fee} Coins). Energy: ${s.energy}.`,
+        `You passed out at 2:00 AM! Bo found you and dragged you home${s.fee > 0 ? ` (${s.fee} Coins)` : ''}. Energy: ${s.energy}.`,
       ),
     );
   lines.push(h('p', null, `Energy restored to ${s.energy}.`));

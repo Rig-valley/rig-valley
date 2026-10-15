@@ -110,7 +110,8 @@ export const RELATIONSHIP_QUESTS: (QuestDef & { level: number; npc: NpcId })[] =
     npc: 'mia',
     level: 2,
     title: 'Shelf Help',
-    description: 'Mia sold her last Thermal Paste to Kai. Bring her 3 tubes so she can restock.',
+    description:
+      "Mia's paste delivery got lost on the road. Grab 3 tubes of Thermal Paste from Dex's Repair Shop and bring them to her.",
     giver: 'mia',
     goals: [{ type: 'deliver', npc: 'mia', itemId: 'thermal_paste', qty: 3 }],
     reward: {
@@ -125,7 +126,8 @@ export const RELATIONSHIP_QUESTS: (QuestDef & { level: number; npc: NpcId })[] =
     npc: 'bo',
     level: 2,
     title: 'Secret Recipe',
-    description: 'Bo is inventing a new snack. Bring 1 Thermal Hot Sauce and 2 Chip Cookies.',
+    description:
+      "Bo is inventing a new snack and needs a taste tester. Buy 1 Thermal Hot Sauce and 2 Chip Cookies at the café, then hand them back to Bo — you're on the tasting panel.",
     giver: 'bo',
     goals: [
       { type: 'deliver', npc: 'bo', itemId: 'hot_sauce', qty: 1 },
@@ -155,7 +157,7 @@ export const RELATIONSHIP_QUESTS: (QuestDef & { level: number; npc: NpcId })[] =
     level: 3,
     title: 'North Line Down',
     description:
-      'A storm knocked out the north line. Bring Vera 2 Battery Packs to keep the lights on.',
+      "A storm knocked out the north line and Vera can't leave the counter. Buy 2 Battery Packs from her shop and bring them to her so she can send them up the line.",
     giver: 'vera',
     goals: [{ type: 'deliver', npc: 'vera', itemId: 'battery_pack', qty: 2 }],
     reward: {
