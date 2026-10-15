@@ -127,6 +127,15 @@ export function portrait(id: string): HTMLDivElement {
   });
 }
 
+/** Link to the Terms of Service, opened in a new tab so the game keeps running. */
+export function termsLink(label = 'Terms of Service'): HTMLAnchorElement {
+  return h(
+    'a',
+    { href: '/terms.html', target: '_blank', rel: 'noopener', class: 'terms-link' },
+    label,
+  );
+}
+
 /** A Coins price with the coin icon. `short` marks it red (not enough Coins). */
 export function price(amount: number, short = false): HTMLSpanElement {
   return h(

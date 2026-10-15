@@ -35,7 +35,7 @@ import {
   setActiveWallet,
   type ActiveWallet,
 } from '../wallet/wallet';
-import { clear, h } from './dom';
+import { clear, h, termsLink } from './dom';
 import { confirmModal, uiRoot } from './modal';
 import { pickWallet } from './walletPicker';
 import { letterView } from './menus/journal';
@@ -316,6 +316,13 @@ export async function accountScreen(): Promise<MeDTO> {
       ),
       h('div', { class: 'row' }, importLink),
       err,
+      h(
+        'p',
+        { class: 'dim', style: 'font-size:14px;margin:0' },
+        'By continuing you confirm you are 18+ and eligible to receive rewards, and you agree to the ',
+        termsLink(),
+        '.',
+      ),
     );
     show(main);
   });

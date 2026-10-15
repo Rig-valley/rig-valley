@@ -13,7 +13,7 @@ import { api, ApiError } from '../../api';
 import { store } from '../../store';
 import { sfx } from '../../audio';
 import { ensureWallet } from '../../wallet/session';
-import { ICONS, add, clear, h, icon } from '../dom';
+import { ICONS, add, clear, h, icon, termsLink } from '../dom';
 import { openModal, showModal, type ModalHandle } from '../modal';
 
 const STATUS_TEXT: Record<WithdrawalDTO['status'], string> = {
@@ -123,6 +123,13 @@ async function renderRewards(body: HTMLElement, m: ModalHandle): Promise<void> {
             : data.chain
               ? 'You pay a small gas fee in ETH.'
               : '',
+        ),
+        h(
+          'span',
+          { class: 'dim', style: 'font-size:13px;text-align:right;max-width:240px' },
+          'Withdrawing confirms you are eligible under the ',
+          termsLink('Terms'),
+          '.',
         ),
       ),
     ),

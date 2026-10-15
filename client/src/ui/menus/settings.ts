@@ -5,7 +5,7 @@ import { audioSettings, setAudioSettings } from '../../audio';
 import { accountFromPhrase, loadKeystore, privateKeyOf } from '../../wallet/keystore';
 import { askPassword, getSessionAddress } from '../../wallet/session';
 import { activeWallet, disconnectInjected, explorerAddressUrl } from '../../wallet/wallet';
-import { clear, h } from '../dom';
+import { clear, h, termsLink } from '../dom';
 import { confirmModal, isOpen, showModal } from '../modal';
 import { openHowToPlay } from './help';
 
@@ -159,7 +159,9 @@ export async function openSettings(): Promise<void> {
       h(
         'p',
         { class: 'dim', style: 'font-size:15px' },
-        'Rewards are paid in NVIDIA Stock Tokens on Robinhood Chain. Stock Token availability depends on where you live — check the Terms of Service for eligibility.',
+        'Rewards are paid in NVIDIA Stock Tokens on Robinhood Chain. Stock Tokens are not available everywhere (for example, not to U.S. persons) — see the ',
+        termsLink(),
+        ' for eligibility.',
       ),
       h('div', { class: 'row' }, howTo, signOut),
     ],

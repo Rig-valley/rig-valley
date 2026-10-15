@@ -1778,3 +1778,9 @@ input[type='range']:focus-visible {
     inset 0 0 0 2px var(--yellow),
     inset 0 0 0 4px var(--night-0);
 }
+
+.terms-link {
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
