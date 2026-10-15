@@ -29,6 +29,7 @@ import { loadConfig } from '../src/config.js';
 import { createServer } from '../src/server.js';
 import { openDb } from '../src/db/index.js';
 import type { WithdrawalService } from '../src/rewards/withdrawals.js';
+import type { BalanceMonitor } from '../src/admin/admin.js';
 
 const RPC = 'http://127.0.0.1:8545';
 // Anvil's default, publicly known test keys (local chain only, never real funds).
@@ -73,6 +74,7 @@ function signRequest(
 describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () => {
   let app: FastifyInstance;
   let withdrawals: WithdrawalService;
+  let monitor: BalanceMonitor;
   let token: Hex;
   let distributor: Hex;
   const player = privateKeyToAccount(generatePrivateKey());
@@ -141,6 +143,7 @@ describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () 
     const srv = await createServer(cfg, { db });
     app = srv.app;
     withdrawals = srv.withdrawals;
+    monitor = srv.monitor;
 
     // Make one harvest worth more than $5 so the test doesn't need 60 harvests.
     await app.inject({
@@ -189,6 +192,40 @@ describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () 
       await app.inject({ method: 'POST', url: '/api/action', headers: { cookie }, payload })
     ).json() as { state: StateDTO };
 
+  it('watches the gas relayer balance and alerts when it runs low', async () => {
+    await monitor.check();
+    const dash = async () =>
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/admin/dashboard',
+          headers: { authorization: `Bearer ${ADMIN}` },
+        })
+      ).json();
+    const d1 = await dash();
+    expect(BigInt(d1.relayerBalanceWei)).toBeGreaterThan(0n);
+    expect(d1.lowRelayerAlert).toBe(false);
+    // Raise the alert line above the balance: the dashboard flags it.
+    await app.inject({
+      method: 'PUT',
+      url: '/api/admin/config',
+      headers: { authorization: `Bearer ${ADMIN}` },
+      payload: { relayerAlertWei: (BigInt(d1.relayerBalanceWei) + 1n).toString() },
+    });
+    await monitor.check();
+    const d2 = await dash();
+    expect(d2.lowRelayerAlert).toBe(true);
+    expect(d2.alerts.some((a: { text: string }) => /relayer is low on ETH/.test(a.text))).toBe(
+      true,
+    );
+    await app.inject({
+      method: 'PUT',
+      url: '/api/admin/config',
+      headers: { authorization: `Bearer ${ADMIN}` },
+      payload: { relayerAlertWei: '1000000000000000' },
+    });
+  });
+
   it('locks withdraw below $5', async () => {
     const r = await app.inject({
       method: 'POST',
@@ -212,6 +249,29 @@ describe.skipIf(!chainUp || !haveArtifacts)('withdrawal end-to-end (anvil)', () 
     expect(after.state.rewards.unlocked).toBe(true);
     // $6 at $200 = 0.03 NVDA
     expect(after.state.rewards.pendingUnits).toBe(parseUnits('0.03', 18).toString());
+
+    // A brand-new farm waits before its first withdrawal.
+    const early = await app.inject({
+      method: 'POST',
+      url: '/api/rewards/withdraw/prepare',
+      headers: { cookie },
+    });
+    expect(early.statusCode).toBe(400);
+    expect(early.json().error).toBe('too_new');
+    await app.inject({
+      method: 'PUT',
+      url: '/api/admin/config',
+      headers: { authorization: `Bearer ${ADMIN}` },
+      payload: {
+        rewards: {
+          normalUsdPerHarvest: 0.02,
+          boostUsdPerHarvest: 6,
+          boostHarvestCount: 60,
+          withdrawMinUsd: 5,
+          withdrawMinFarmAgeHours: 0,
+        },
+      },
+    });
 
     // The contract caps a single claim at 0.026 NVDA ($5.20): the server signs only that much.
     const owner = createWalletClient({

@@ -241,6 +241,14 @@ async function dashboard(): Promise<void> {
           d.priceUpdatedAt ? `updated ${new Date(d.priceUpdatedAt).toLocaleString('en-US')}` : '',
           d.priceUsd === null ? 'bad' : '',
         ),
+        stat(
+          'Gas relayer',
+          d.relayerBalanceWei === null
+            ? '—'
+            : `${formatTokenUnits(d.relayerBalanceWei, 18, 5)} ETH`,
+          d.relayerAddress ? shortAddress(d.relayerAddress) : 'Players pay their own gas',
+          d.lowRelayerAlert ? 'bad' : d.relayerBalanceWei === null ? '' : 'ok',
+        ),
         stat('In-flight withdrawals', formatInt(d.withdrawalsPending)),
         stat('Players', formatInt(d.players)),
         stat('Harvests today', formatInt(d.harvestsToday)),
@@ -326,6 +334,22 @@ async function rewards(): Promise<void> {
   const [f5, alertAt] = numberField('Alert when contract balance below (NVDA)', threshold, '1', {
     min: '0',
   });
+  const [f6, perDay] = numberField(
+    'NVDA harvests per farm per day (0 = no limit)',
+    r.dailyNvdaHarvests,
+    '1',
+    { min: '0' },
+  );
+  const [f7, ageHours] = numberField(
+    'New farms wait before first withdraw (hours)',
+    r.withdrawMinFarmAgeHours,
+    '1',
+    { min: '0' },
+  );
+  const relayerEth = Number(BigInt(cfg.relayerAlertWei) / 10n ** 12n) / 1e6;
+  const [f8, relayerAt] = numberField('Alert when gas relayer below (ETH)', relayerEth, '0.0005', {
+    min: '0',
+  });
   const msg = h('div', { class: 'msg' });
   const save = h(
     'button',
@@ -336,6 +360,7 @@ async function rewards(): Promise<void> {
           BigInt(Math.round(alertAt() * 1e4)) *
           10n ** BigInt(decimals - 4)
         ).toString();
+        const relayerWei = (BigInt(Math.round(relayerAt() * 1e6)) * 10n ** 12n).toString();
         try {
           await call('PUT', '/config', {
             rewards: {
@@ -343,8 +368,11 @@ async function rewards(): Promise<void> {
               boostUsdPerHarvest: boost(),
               boostHarvestCount: Math.round(count()),
               withdrawMinUsd: minUsd(),
+              dailyNvdaHarvests: Math.round(perDay()),
+              withdrawMinFarmAgeHours: ageHours(),
             },
             alertThresholdUnits: thresholdUnits,
+            relayerAlertWei: relayerWei,
           });
           msg.className = 'msg ok';
           msg.textContent = 'Saved. Applies to the next harvest — no client update needed.';
@@ -360,7 +388,12 @@ async function rewards(): Promise<void> {
   const update = () => {
     const toFive = minUsd() / Math.max(0.0001, normal());
     const boostTotal = boost() * count();
-    preview.textContent = `Beginner boost pays up to ${formatUsd(boostTotal)} per new player. At the normal rate a player needs ${formatInt(toFive)} harvests per ${formatUsd(minUsd())} withdrawal.`;
+    const cap = Math.round(perDay());
+    const capText =
+      cap > 0
+        ? ` One farm can earn at most ${formatUsd(cap * Math.max(boost(), normal()))} a day (${cap} harvests; ${formatUsd(cap * normal())} after the boost).`
+        : ' No daily limit per farm.';
+    preview.textContent = `Beginner boost pays up to ${formatUsd(boostTotal)} per new player. At the normal rate a player needs ${formatInt(toFive)} harvests per ${formatUsd(minUsd())} withdrawal.${capText}`;
   };
   main.append(
     h(
@@ -372,7 +405,7 @@ async function rewards(): Promise<void> {
         { class: 'dim' },
         'Rewards are configured in USD and converted to NVDA at harvest time using the price feed.',
       ),
-      h('div', { class: 'row' }, f1, f2, f3, f4, f5),
+      h('div', { class: 'row' }, f1, f2, f3, f4, f5, f6, f7, f8),
       preview,
       h('div', { class: 'row' }, save),
       msg,

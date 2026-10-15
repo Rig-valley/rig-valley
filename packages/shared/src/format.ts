@@ -12,6 +12,19 @@ export function formatDecimal(n: number, digits = 2): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
 
+/** A wait in plain English: "2 days 4 hours", "3 hours 12 min", "5 min". */
+export function formatDuration(ms: number): string {
+  const min = Math.max(1, Math.ceil(ms / 60_000));
+  const days = Math.floor(min / 1440);
+  const hours = Math.floor((min % 1440) / 60);
+  const mins = min % 60;
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  if (days > 0)
+    return hours > 0 ? `${plural(days, 'day')} ${plural(hours, 'hour')}` : plural(days, 'day');
+  if (hours > 0) return mins > 0 ? `${plural(hours, 'hour')} ${mins} min` : plural(hours, 'hour');
+  return `${mins} min`;
+}
+
 export function formatTemp(n: number): string {
   return `${Math.round(n)}°C`;
 }

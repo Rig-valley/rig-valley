@@ -79,7 +79,17 @@ Then from the **treasury** wallet: transfer NVDA to the distributor (weekly top-
 - `SIWE_DOMAIN` / `SIWE_URI` must match the public game URL exactly; `CORS_ORIGINS` lists the game and admin origins.
 - `VOUCHER_SIGNER_KEY` → its address must equal the contract's `voucherSigner`. Rotate with `setVoucherSigner` from the treasury.
 - `RELAYER_PRIVATE_KEY` → keep a small ETH balance; it can only ever cause `claim` calls.
-- `ALERT_WEBHOOK_URL` → receives `{text}` when the contract balance falls below the admin threshold.
+- `ALERT_WEBHOOK_URL` → receives `{text}` when the contract balance or the relayer's ETH balance falls below its admin threshold (both are also shown on the admin dashboard).
+- `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` → Cloudflare Turnstile captcha on farm creation (free; create a widget for the game's domain at dash.cloudflare.com → Turnstile). Without them, farm creation has no captcha.
+
+### Anti-abuse levers (admin panel → Rewards)
+
+- **NVDA harvests per farm per day** (default 24, UTC day): later harvests pay Coins only and don't use up the beginner boost.
+- **New farms wait before first withdraw** (default 72 hours).
+- **Alert when gas relayer below** (default 0.001 ETH).
+- Bedtime is fixed in the game rules: sleep from 8:00 PM, or from 2:00 PM at 30 Energy or less (day 1 is free), so game days can't be skipped back to back.
+- Coffee Rush pay is worked out on the server from the key presses, with real-time checks.
+- Two unpaid weekly power bills in a row cut a farm's power until the debt is paid at Vera's Substation.
 - Run `pnpm --filter @rig-valley/server start` behind a TLS reverse proxy that forwards `/api` to it. Serve `client/dist` and `admin/dist` as static sites. Restrict the admin site (VPN / IP allow-list) in addition to the token.
 
 ## 4. Before mainnet

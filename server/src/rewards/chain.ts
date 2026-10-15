@@ -48,6 +48,10 @@ export interface ChainService {
   nonceUsed(nonce: bigint): Promise<boolean>;
   contractBalance(): Promise<bigint>;
   contractPaused(): Promise<boolean>;
+  /** The gas relayer's address, or null when players pay their own gas. */
+  relayerAddress: Address | null;
+  /** The relayer's ETH balance (wei), or null without a relayer. */
+  relayerBalance(): Promise<bigint | null>;
   /** On-chain payout limits: largest single claim, and what is left in the current period. */
   claimLimits(): Promise<{ maxClaim: bigint; remaining: bigint }>;
   verifyWithdrawRequest(args: {
@@ -156,6 +160,9 @@ export function createChainService(cfg: Config): ChainService | null {
         abi: DISTRIBUTOR_ABI,
         functionName: 'paused',
       }),
+    relayerAddress: relayerAccount?.address ?? null,
+    relayerBalance: async () =>
+      relayerAccount ? publicClient.getBalance({ address: relayerAccount.address }) : null,
     async claimLimits() {
       const [maxClaim, remaining] = await Promise.all([
         publicClient.readContract({

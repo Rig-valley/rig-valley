@@ -13,6 +13,8 @@ export interface GameConfig {
   withdrawalsPaused: boolean;
   /** Alert when the distribution contract balance is below this (token units). */
   alertThresholdUnits: string;
+  /** Alert when the gas relayer's ETH balance is below this (wei). */
+  relayerAlertWei: string;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
@@ -20,9 +22,17 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   market: DEFAULT_MARKET_CONFIG,
   withdrawalsPaused: false,
   alertThresholdUnits: (50n * 10n ** 18n).toString(),
+  // 0.001 ETH: hundreds of sponsored claims on Robinhood Chain, time enough to top it up.
+  relayerAlertWei: (10n ** 15n).toString(),
 };
 
-const KEYS = ['rewards', 'market', 'withdrawalsPaused', 'alertThresholdUnits'] as const;
+const KEYS = [
+  'rewards',
+  'market',
+  'withdrawalsPaused',
+  'alertThresholdUnits',
+  'relayerAlertWei',
+] as const;
 
 export class ConfigStore {
   private cache: GameConfig | null = null;
@@ -43,6 +53,8 @@ export class ConfigStore {
         (map.get('withdrawalsPaused') as boolean) ?? DEFAULT_GAME_CONFIG.withdrawalsPaused,
       alertThresholdUnits:
         (map.get('alertThresholdUnits') as string) ?? DEFAULT_GAME_CONFIG.alertThresholdUnits,
+      relayerAlertWei:
+        (map.get('relayerAlertWei') as string) ?? DEFAULT_GAME_CONFIG.relayerAlertWei,
     };
     this.cache = cfg;
     this.loadedAt = Date.now();

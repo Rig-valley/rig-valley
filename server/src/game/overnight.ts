@@ -39,14 +39,18 @@ export function sleep(s: FarmState, ctx: EngineCtx, passedOut: boolean): SleepSu
   const cal = calendar(f.day);
   const nightWeather = f.weather;
 
-  // --- Power: breaker and weather outages ---
-  const draw = totalPowerDraw(s.rigs, s.coolingUnits);
+  // --- Power: cut off over unpaid bills, breaker and weather outages ---
+  const cut = f.flags.powerCut;
+  const draw = cut ? 0 : totalPowerDraw(s.rigs, s.coolingUnits);
   const capacity = powerCapacity(f.powerUpgrades);
   const tripped = draw > capacity;
   const shielded = itemQty(s, 'surge_shield') > 0;
   const outage =
-    !tripped && !shielded && seeded('outage', f.id, f.day) < WEATHER_INFO[f.weather].outageChance;
-  const powerOff = tripped || outage;
+    !cut &&
+    !tripped &&
+    !shielded &&
+    seeded('outage', f.id, f.day) < WEATHER_INFO[f.weather].outageChance;
+  const powerOff = cut || tripped || outage;
 
   // --- Rig cycles through the night ---
   simulateRigs(
@@ -87,27 +91,54 @@ export function sleep(s: FarmState, ctx: EngineCtx, passedOut: boolean): SleepSu
   const friendship = Object.fromEntries(s.relations);
 
   // --- Weekly power bill (Monday mornings) ---
+  // Short = the rest is owed. Two short bills in a row = Vera cuts the power until it's paid.
   let bill: number | null = null;
+  let billUnpaid = 0;
+  let powerCutNow = false;
   if (today.weekdayIndex === POWER_BILL_WEEKDAY && f.day > 1) {
     const used = Math.round(f.powerKwh * 10) / 10;
+    const carried = f.flags.billDebt;
     const cost =
       Math.ceil(
         f.powerKwh *
           POWER_PRICE_PER_KWH *
           billMultiplier(f.powerUpgrades) *
           powerBillDiscount({ stage: f.stage, friendship }),
-      ) + f.flags.billDebt;
+      ) + carried;
     const paid = Math.min(cost, Math.max(0, f.coins));
     const unpaid = cost - paid;
     if (paid > 0) addCoins(s, -paid, 'power_bill');
     f.flags.billDebt = unpaid;
     f.powerKwh = 0;
     bill = cost;
+    billUnpaid = unpaid;
+    let restored = false;
+    if (unpaid > 0) {
+      f.flags.unpaidBills += 1;
+      if (f.flags.unpaidBills >= 2 && !f.flags.powerCut) {
+        f.flags.powerCut = true;
+        powerCutNow = true;
+        for (const rig of s.rigs) {
+          rig.powered = false;
+          rig.bootRemaining = 0;
+        }
+      }
+    } else {
+      f.flags.unpaidBills = 0;
+      if (f.flags.powerCut) {
+        f.flags.powerCut = false;
+        restored = true;
+      }
+    }
     sendMail(s, 'power_bill', {
       kwh: used.toLocaleString('en-US'),
       coins: cost.toLocaleString('en-US'),
       unpaid,
+      carried,
+      cut: powerCutNow ? 1 : f.flags.powerCut ? 2 : 0,
+      restored: restored ? 1 : 0,
     });
+    if (powerCutNow) sendMail(s, 'power_cut', { owed: unpaid.toLocaleString('en-US') });
   }
 
   // --- Mail ---
@@ -155,6 +186,8 @@ export function sleep(s: FarmState, ctx: EngineCtx, passedOut: boolean): SleepSu
     outage,
     tripped,
     bill,
+    billUnpaid,
+    powerCut: powerCutNow,
     harvestsYesterday,
   };
   ctx.events.push({ kind: 'sleep', summary });

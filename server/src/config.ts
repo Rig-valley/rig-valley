@@ -70,6 +70,10 @@ const schema = z.object({
 
   /** Optional webhook (POST JSON) for low-balance alerts. */
   ALERT_WEBHOOK_URL: z.string().optional(),
+
+  /** Cloudflare Turnstile (captcha on farm creation). Set both to switch it on. */
+  TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
 });
 
 export type Config = z.infer<typeof schema>;
@@ -81,6 +85,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Invalid configuration:\n${msg}`);
   }
   const cfg = parsed.data;
+  if (!!cfg.TURNSTILE_SITE_KEY !== !!cfg.TURNSTILE_SECRET_KEY)
+    throw new Error('Set both TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, or neither.');
   if (cfg.NODE_ENV === 'production') {
     if (!cfg.DATABASE_URL) throw new Error('DATABASE_URL is required in production.');
     if (!cfg.ADMIN_TOKEN) throw new Error('ADMIN_TOKEN is required in production.');

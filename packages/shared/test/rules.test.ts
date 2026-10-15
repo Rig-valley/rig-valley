@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canSleep,
+  coffeeRushOrders,
+  formatDuration,
+  playCoffeeRush,
+  rewardDay,
+  rewardDayResetsAt,
+  type RushPress,
   calendar,
   formatClock,
   slotAt,
@@ -167,5 +174,42 @@ describe('content', () => {
   it('validates farm names', () => {
     expect(validateFarmName('ab')).not.toBeNull();
     expect(validateFarmName("Ray's Garage")).toBeNull();
+  });
+});
+
+describe('anti-abuse rules', () => {
+  it('opens bed at 8 PM, 2 PM when worn out, anytime on day 1', () => {
+    expect(canSleep(3, 19 * 60 + 59, 100)).toBe(false);
+    expect(canSleep(3, 20 * 60, 100)).toBe(true);
+    expect(canSleep(3, 14 * 60, 31)).toBe(false);
+    expect(canSleep(3, 14 * 60, 30)).toBe(true);
+    expect(canSleep(3, 13 * 60 + 59, 0)).toBe(false);
+    expect(canSleep(1, 6 * 60, 100)).toBe(true);
+    expect(canSleep(3, 25 * 60, 100)).toBe(true);
+  });
+
+  it('replays Coffee Rush the same way every time', () => {
+    const orders = coffeeRushOrders(42);
+    expect(orders).toHaveLength(10);
+    expect(orders.map((o) => o.length)).toEqual([3, 3, 4, 4, 4, 5, 5, 5, 6, 6]);
+    expect(coffeeRushOrders(42)).toEqual(orders);
+    const presses: RushPress[] = [];
+    let t = 0;
+    for (const o of orders) for (const k of o) presses.push([k, (t += 100)]);
+    expect(playCoffeeRush(42, presses)).toEqual({ score: 10, perfect: 10 });
+    // A slip restarts the drink and loses its tip.
+    const wrong = ((orders[0]![0]! + 1) % 4) as RushPress[0];
+    expect(playCoffeeRush(42, [[wrong, 50], ...presses])).toEqual({ score: 10, perfect: 9 });
+    expect(playCoffeeRush(42, [])).toEqual({ score: 0, perfect: 0 });
+  });
+
+  it('formats waits and reward days', () => {
+    expect(formatDuration(72 * 3_600_000)).toBe('3 days');
+    expect(formatDuration(26 * 3_600_000 + 1)).toBe('1 day 2 hours');
+    expect(formatDuration(65 * 60_000)).toBe('1 hour 5 min');
+    expect(formatDuration(1)).toBe('1 min');
+    const t = Date.UTC(2026, 9, 15, 23, 59);
+    expect(rewardDay(t)).toBe('2026-10-15');
+    expect(rewardDayResetsAt(t)).toBe(Date.UTC(2026, 9, 16));
   });
 });

@@ -30,6 +30,7 @@ import type { GameService } from './game/service.js';
 import type { WithdrawalService } from './rewards/withdrawals.js';
 import type { AdminService } from './admin/admin.js';
 import { GameError, fail } from './errors.js';
+import { verifyTurnstile } from './auth/captcha.js';
 import {
   actionSchema,
   adminConfigSchema,
@@ -161,6 +162,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         chain: deps.chainInfo,
         symbol: cfg.NVDA_SYMBOL,
         decimals: cfg.NVDA_DECIMALS,
+        captchaSiteKey: cfg.TURNSTILE_SITE_KEY || null,
       }) satisfies PublicConfigDTO,
   );
 
@@ -218,6 +220,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     async (req) => {
       await requireAuth(req);
       const body = createFarmSchema.parse(req.body) as CreateFarmRequest;
+      if (cfg.TURNSTILE_SECRET_KEY) {
+        const check = await verifyTurnstile(cfg.TURNSTILE_SECRET_KEY, body.captchaToken, req.ip);
+        if (check === 'unavailable')
+          fail(
+            'captcha_unavailable',
+            "We couldn't check the captcha. Please try again in a moment.",
+            503,
+          );
+        if (check !== 'ok')
+          fail('captcha', 'Please complete the "I am human" check, then try again.');
+      }
       return game.createFarm(req.address!, body);
     },
   );
@@ -309,7 +322,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.get('/api/admin/config', adminRoute, async () => config.get());
   app.put('/api/admin/config', adminRoute, async (req) => {
     const patch = adminConfigSchema.parse(req.body);
-    const next = await config.set(patch as never);
+    // Fields an older admin panel doesn't send keep their current values.
+    const rewards = patch.rewards && { ...(await config.get()).rewards, ...patch.rewards };
+    const next = await config.set({ ...patch, ...(rewards ? { rewards } : {}) } as never);
     await admin.audit('config', patch);
     return next;
   });

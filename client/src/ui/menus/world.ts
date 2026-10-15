@@ -3,11 +3,18 @@ import {
   FESTIVALS,
   SEASON_NAMES,
   STAGES,
+  BEDTIME_MINUTE,
+  REAL_MS_PER_GAME_MINUTE,
+  TIRED_BEDTIME_MINUTE,
+  TIRED_ENERGY,
   WEATHER_INFO,
   calendar,
+  canSleep,
+  earliestBedtime,
   findQuest,
   energyAfterSleep,
   formatClock,
+  formatDuration,
   formatInt,
   getItem,
   isRigActive,
@@ -16,11 +23,26 @@ import {
 import { store } from '../../store';
 import { sfx } from '../../audio';
 import { ICONS, h, icon } from '../dom';
-import { confirmModal, openModal, showModal } from '../modal';
+import { confirmModal, infoModal, openModal, showModal } from '../modal';
 import { pickItem } from './rig';
 
 export async function openSleep(): Promise<void> {
   const minute = store.displayMinute();
+  const f = store.state?.farm;
+  if (f && !canSleep(f.day, minute, f.energy)) {
+    const bed = earliestBedtime(f.day, f.energy);
+    const wait = (bed - minute) * REAL_MS_PER_GAME_MINUTE;
+    const tiredHint =
+      f.energy > TIRED_ENERGY && minute < BEDTIME_MINUTE
+        ? ` If you wear yourself out (${TIRED_ENERGY} Energy or less), you can turn in from ${formatClock(TIRED_BEDTIME_MINUTE)}.`
+        : '';
+    await infoModal(
+      'Not sleepy yet',
+      `It's ${formatClock(minute)} — too early for bed. You can sleep from ${formatClock(bed)}, about ${formatDuration(wait)} of play from now.${tiredHint}\n\nYour rigs keep working all day. Until then: claim harvests, search for shiny scraps, help Bo at the café or chat with folks in town.`,
+      'Got it',
+    );
+    return;
+  }
   const late = minute >= 24 * 60;
   const ok = await confirmModal(
     'Go to bed?',
@@ -65,7 +87,23 @@ export function showMorning(s: SleepSummary): void {
   if (s.outage)
     lines.push(h('p', { class: 'warn' }, 'A power outage hit last night. Rigs took a nap.'));
   if (s.bill !== null)
-    lines.push(h('p', null, `Weekly power bill paid: ${formatInt(s.bill)} Coins.`));
+    lines.push(
+      s.billUnpaid > 0
+        ? h(
+            'p',
+            { class: 'warn' },
+            `Weekly power bill: ${formatInt(s.bill)} Coins — ${formatInt(s.billUnpaid)} Coins couldn't be paid. Pay Vera at the Power Substation.`,
+          )
+        : h('p', null, `Weekly power bill paid: ${formatInt(s.bill)} Coins.`),
+    );
+  if (s.powerCut)
+    lines.push(
+      h(
+        'p',
+        { class: 'bad' },
+        'Vera cut your power over two unpaid bills. Your rigs stay off until you pay her at the Power Substation.',
+      ),
+    );
   lines.push(
     h('p', null, `Today: ${WEATHER_INFO[s.weather].name} — ${WEATHER_INFO[s.weather].effect}`),
     h('p', { class: 'dim' }, WEATHER_INFO[s.forecast].forecast),

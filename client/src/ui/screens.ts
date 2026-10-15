@@ -35,6 +35,7 @@ import {
   setActiveWallet,
   type ActiveWallet,
 } from '../wallet/wallet';
+import { captchaWidget } from './captcha';
 import { clear, h, termsLink } from './dom';
 import { confirmModal, uiRoot } from './modal';
 import { pickWallet } from './walletPicker';
@@ -547,8 +548,9 @@ async function importWalletFlow(): Promise<ActiveWallet | null> {
 }
 
 // ------------------------------------------------------------------ farm setup
-export function farmSetupScreen(): Promise<StateDTO> {
+export function farmSetupScreen(captchaSiteKey: string | null = null): Promise<StateDTO> {
   return new Promise((resolve) => {
+    const captcha = captchaSiteKey ? captchaWidget(captchaSiteKey) : null;
     let hair: HairColorId = 'copper';
     let hat: HatId = 'cap';
     const farmName = h('input', {
@@ -659,6 +661,7 @@ export function farmSetupScreen(): Promise<StateDTO> {
           h('div', { class: 'field' }, h('label', null, 'Farmer name'), charName),
           h('div', { class: 'field' }, h('label', null, 'Hair color'), hairRow),
           h('div', { class: 'field' }, h('label', null, 'Hat'), hatRow),
+          captcha?.el ?? null,
         ),
         h(
           'div',
@@ -678,16 +681,25 @@ export function farmSetupScreen(): Promise<StateDTO> {
         sfx('error');
         return;
       }
+      const captchaToken = captcha?.token() ?? undefined;
+      if (captcha && !captchaToken) {
+        err.textContent = 'Please complete the quick "I am human" check first.';
+        sfx('error');
+        return;
+      }
       const restore = busy(create, 'Building your garage…');
       try {
         const state = await api.createFarm({
           farmName: farmName.value.trim(),
           character: { name: charName.value.trim(), hair, hat },
+          ...(captchaToken ? { captchaToken } : {}),
         });
         sfx('levelup');
         resolve(state);
       } catch (e2) {
         restore();
+        // A captcha token only works once.
+        captcha?.reset();
         err.textContent = e2 instanceof ApiError ? e2.message : 'Something went wrong.';
       }
     });

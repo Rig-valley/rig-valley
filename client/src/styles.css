@@ -351,6 +351,11 @@ select {
   min-height: 20px;
 }
 
+/* Turnstile widget: reserve its height so the form doesn't jump when it loads. */
+.captcha-box {
+  min-height: 65px;
+}
+
 /* ------------------------------------------------------------------ bars (segmented) */
 .bar {
   height: 14px;
@@ -1392,6 +1397,30 @@ a:hover {
 .cr {
   width: 680px;
   max-width: calc(100vw - 32px);
+  overflow-y: auto;
+}
+
+/* On short screens, scroll instead of squashing the cup or the bill. */
+.cr > * {
+  flex-shrink: 0;
+}
+
+/* Shift over: the timer has nothing left to say. */
+.cr.done .cr-time {
+  display: none;
+}
+
+/* Keep the bill and the Collect button on screen without scrolling. */
+.cr.done .cr-stage.result {
+  padding: 10px 12px;
+}
+
+.cr.done .cr-result {
+  gap: 8px;
+}
+
+.cr.done .cr-stars {
+  font-size: 42px;
 }
 
 .cr-head {

@@ -206,8 +206,11 @@ async function main(): Promise<void> {
   await Promise.all([loadDigitFont(), document.fonts.load('16px "Tiny5"').catch(() => undefined)]);
   const world = await boot();
   document.getElementById('boot-loader')?.remove();
+  let captchaSiteKey: string | null = null;
   try {
-    setupChain(await withRetry(() => api.publicConfig()));
+    const pub = await withRetry(() => api.publicConfig());
+    setupChain(pub);
+    captchaSiteKey = pub.captchaSiteKey ?? null;
   } catch {
     messageScreen(
       "Can't reach Rig Valley",
@@ -234,7 +237,7 @@ async function main(): Promise<void> {
       return;
     }
   } else {
-    state = await farmSetupScreen();
+    state = await farmSetupScreen(captchaSiteKey);
     await storyOpener(state);
     // Reading Ray's letter is the first tutorial step.
     const letter = state.mail.find((m) => m.templateId === 'ray_welcome');

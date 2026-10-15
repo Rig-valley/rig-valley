@@ -3,6 +3,7 @@
  * pending tx → success with explorer link, plus withdrawal history.
  */
 import {
+  formatDuration,
   formatTokenUnits,
   formatUsd,
   shortAddress,
@@ -50,13 +51,16 @@ async function renderRewards(body: HTMLElement, m: ModalHandle): Promise<void> {
   const segs = 20;
   const more = Math.max(0, s.minUsd - s.pendingUsd);
   const amount = formatTokenUnits(s.pendingUnits, s.decimals, 6);
+  const now = Date.now();
+  const waitMs = s.withdrawOpensAt !== null ? s.withdrawOpensAt - now : 0;
+  const tooNew = waitMs > 0;
 
   const withdrawBtn = h(
     'button',
     {
       class: `btn big ${s.unlocked ? 'neon' : ''}`,
       type: 'button',
-      disabled: !s.unlocked || s.paused || !data.chain,
+      disabled: !s.unlocked || s.paused || !data.chain || tooNew,
     },
     'Withdraw',
   );
@@ -73,13 +77,19 @@ async function renderRewards(body: HTMLElement, m: ModalHandle): Promise<void> {
       )
     : s.paused
       ? h('p', { class: 'warn' }, 'Withdrawals are paused for maintenance. Your rewards are safe.')
-      : s.unlocked
-        ? h('p', { class: 'good' }, 'Unlocked! Send your rewards to your wallet anytime.')
-        : h(
+      : s.unlocked && tooNew
+        ? h(
             'p',
-            null,
-            s.priceUsd ? `${formatUsd(more)} more to unlock.` : 'Waiting for a price update…',
-          );
+            { class: 'warn' },
+            `Unlocked! New farms can withdraw after a few days — yours opens in ${formatDuration(waitMs)}.`,
+          )
+        : s.unlocked
+          ? h('p', { class: 'good' }, 'Unlocked! Send your rewards to your wallet anytime.')
+          : h(
+              'p',
+              null,
+              s.priceUsd ? `${formatUsd(more)} more to unlock.` : 'Waiting for a price update…',
+            );
 
   body.append(
     h(
@@ -175,6 +185,25 @@ async function renderRewards(body: HTMLElement, m: ModalHandle): Promise<void> {
             )
           : null,
       ),
+      s.nvdaHarvestsPerDay > 0
+        ? h(
+            'p',
+            {
+              class: s.nvdaHarvestsToday >= s.nvdaHarvestsPerDay ? 'warn' : 'dim',
+              style: 'font-size:15px',
+            },
+            s.nvdaHarvestsToday >= s.nvdaHarvestsPerDay
+              ? `Today's limit reached: ${s.nvdaHarvestsPerDay} of ${s.nvdaHarvestsPerDay} harvests paid ${s.symbol}. More harvests still pay Coins; ${s.symbol} is back in ${formatDuration(s.nvdaLimitResetsAt - now)} (midnight UTC).`
+              : `Today: ${s.nvdaHarvestsToday} of ${s.nvdaHarvestsPerDay} harvests paid ${s.symbol}. The count resets in ${formatDuration(s.nvdaLimitResetsAt - now)} (midnight UTC).`,
+          )
+        : null,
+      tooNew && !s.unlocked
+        ? h(
+            'p',
+            { class: 'dim', style: 'font-size:15px' },
+            `New farms can withdraw after a few days. Yours opens in ${formatDuration(waitMs)}.`,
+          )
+        : null,
       h(
         'p',
         { class: 'dim', style: 'font-size:15px' },
@@ -207,11 +236,13 @@ async function renderRewards(body: HTMLElement, m: ModalHandle): Promise<void> {
                 minute: '2-digit',
               }),
             ),
-            h(
-              'span',
-              { class: 'num' },
-              `+${formatTokenUnits(hv.nvdaUnits, s.decimals, 6)} ${s.symbol}`,
-            ),
+            hv.usd === 0 && hv.nvdaUnits === '0'
+              ? h('span', { class: 'dim' }, 'Coins only (daily limit)')
+              : h(
+                  'span',
+                  { class: 'num' },
+                  `+${formatTokenUnits(hv.nvdaUnits, s.decimals, 6)} ${s.symbol}`,
+                ),
             hv.boosted ? h('span', { class: 'good' }, '★') : null,
           ),
         ),

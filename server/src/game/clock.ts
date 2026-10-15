@@ -39,12 +39,13 @@ export function advanceClock(s: FarmState, ctx: EngineCtx): void {
 export function runMinutes(s: FarmState, ctx: EngineCtx, minutes: number): void {
   if (minutes <= 0) return;
   const f = s.farm;
-  const draw = totalPowerDraw(s.rigs, s.coolingUnits);
-  f.powerKwh += kwh(draw, minutes);
+  // Power cut over unpaid bills: nothing runs and nothing is billed.
+  const powerOff = f.flags.powerCut;
+  if (!powerOff) f.powerKwh += kwh(totalPowerDraw(s.rigs, s.coolingUnits), minutes);
   const events = simulateRigs(
     s.rigs,
     s.coolingUnits,
-    { weather: f.weather, season: seasonOf(f.day), powerOff: false },
+    { weather: f.weather, season: seasonOf(f.day), powerOff },
     minutes,
   );
   for (const e of events) {

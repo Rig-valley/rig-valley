@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto';
 import { getAddress, type Address, type Hex } from 'viem';
 import {
   WITHDRAW_REQUEST_TYPES,
+  formatDuration,
   formatTokenUnits,
   tokenUnitsToUsd,
   type RewardsDTO,
@@ -156,6 +157,14 @@ export class WithdrawalService {
           fail(
             'below_min',
             `You need at least $${cfg.rewards.withdrawMinUsd.toFixed(2)} in rewards to withdraw.`,
+          );
+        }
+        // New farms wait a few days before their first withdrawal (keeps throwaway farms out).
+        const opensAt = s.farm.createdAt + cfg.rewards.withdrawMinFarmAgeHours * 3_600_000;
+        if (opensAt > Date.now()) {
+          fail(
+            'too_new',
+            `New farms can withdraw after ${formatDuration(cfg.rewards.withdrawMinFarmAgeHours * 3_600_000)}. Yours opens in ${formatDuration(opensAt - Date.now())}. Your rewards are safe and keep piling up.`,
           );
         }
         // Cap to the per-claim limit and today's remaining budget; the rest stays pending.

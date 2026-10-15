@@ -5,20 +5,30 @@ import type { ConfigStore } from '../configStore.js';
 import type { PriceFeed } from '../rewards/price.js';
 import type { ChainService } from '../rewards/chain.js';
 import type { GameService } from '../game/service.js';
+import { formatEther } from 'viem';
 import { findFarmId } from '../game/state.js';
 import { fail } from '../errors.js';
 
 export interface MonitorState {
   balance: bigint | null;
   paused: boolean | null;
+  /** Gas relayer ETH balance (wei); null without a relayer or before the first check. */
+  relayerBalance: bigint | null;
   checkedAt: number;
   error: string | null;
 }
 
-/** Polls the distribution contract and raises low-balance alerts. */
+/** Polls the distribution contract and the gas relayer, and raises low-balance alerts. */
 export class BalanceMonitor {
-  state: MonitorState = { balance: null, paused: null, checkedAt: 0, error: null };
+  state: MonitorState = {
+    balance: null,
+    paused: null,
+    relayerBalance: null,
+    checkedAt: 0,
+    error: null,
+  };
   private lastAlertAt = 0;
+  private lastRelayerAlertAt = 0;
 
   constructor(
     private chain: ChainService | null,
@@ -30,28 +40,45 @@ export class BalanceMonitor {
   async check(): Promise<void> {
     if (!this.chain) return;
     try {
-      const [balance, paused] = await Promise.all([
+      const [balance, paused, relayerBalance] = await Promise.all([
         this.chain.contractBalance(),
         this.chain.contractPaused(),
+        this.chain.relayerBalance(),
       ]);
-      this.state = { balance, paused, checkedAt: Date.now(), error: null };
-      const threshold = BigInt((await this.config.get()).alertThresholdUnits);
+      this.state = { balance, paused, relayerBalance, checkedAt: Date.now(), error: null };
+      const cfg = await this.config.get();
+      const threshold = BigInt(cfg.alertThresholdUnits);
       if (balance < threshold && Date.now() - this.lastAlertAt > 3600_000) {
         this.lastAlertAt = Date.now();
-        const text = `Rig Valley: distribution contract balance is low (${balance} ${this.symbol} units < threshold ${threshold}). Top it up from the treasury.`;
-        console.warn(`[alert] ${text}`);
-        if (this.webhook) {
-          await fetch(this.webhook, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ text }),
-            signal: AbortSignal.timeout(5000),
-          }).catch((e) => console.warn('[alert] webhook failed:', (e as Error).message));
-        }
+        await this.alert(
+          `Rig Valley: distribution contract balance is low (${balance} ${this.symbol} units < threshold ${threshold}). Top it up from the treasury.`,
+        );
+      }
+      const relayerMin = BigInt(cfg.relayerAlertWei);
+      if (
+        relayerBalance !== null &&
+        relayerBalance < relayerMin &&
+        Date.now() - this.lastRelayerAlertAt > 3600_000
+      ) {
+        this.lastRelayerAlertAt = Date.now();
+        await this.alert(
+          `Rig Valley: the gas relayer (${this.chain.relayerAddress}) is low on ETH (${formatEther(relayerBalance)} ETH < ${formatEther(relayerMin)} ETH). Send it ETH on Robinhood Chain or withdrawals will stop going through.`,
+        );
       }
     } catch (e) {
       this.state = { ...this.state, error: (e as Error).message, checkedAt: Date.now() };
     }
+  }
+
+  private async alert(text: string): Promise<void> {
+    console.warn(`[alert] ${text}`);
+    if (!this.webhook) return;
+    await fetch(this.webhook, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal: AbortSignal.timeout(5000),
+    }).catch((e) => console.warn('[alert] webhook failed:', (e as Error).message));
   }
 }
 
@@ -118,6 +145,13 @@ export class AdminService {
         level: 'bad',
         text: 'Distribution contract balance is below the alert threshold. Top it up from the treasury.',
       });
+    const relayerBal = monitor.state.relayerBalance;
+    const lowRelayer = relayerBal !== null && relayerBal < BigInt(cfg.relayerAlertWei);
+    if (lowRelayer)
+      alerts.push({
+        level: 'bad',
+        text: `The gas relayer is low on ETH (${formatEther(relayerBal)} ETH). Send ETH on Robinhood Chain to ${chain?.relayerAddress} or sponsored withdrawals will stop.`,
+      });
     if (bal !== null && BigInt(pending) > bal)
       alerts.push({ level: 'warn', text: 'Pending player rewards exceed the contract balance.' });
     if (!q)
@@ -148,6 +182,9 @@ export class AdminService {
       contractBalanceUnits: bal?.toString() ?? null,
       contractPaused: monitor.state.paused,
       lowBalanceAlert: low,
+      relayerAddress: chain?.relayerAddress ?? null,
+      relayerBalanceWei: relayerBal?.toString() ?? null,
+      lowRelayerAlert: lowRelayer,
       withdrawalsPaused: cfg.withdrawalsPaused,
       players,
       harvestsToday,

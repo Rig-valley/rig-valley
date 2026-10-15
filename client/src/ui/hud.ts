@@ -541,6 +541,13 @@ export class Hud {
         sfx('harvest');
         const s = store.state;
         const units = s ? formatTokenUnits(e.nvdaUnits, s.rewards.decimals, 6) : e.nvdaUnits;
+        if (e.capped) {
+          this.toast(
+            `Harvest! +${formatInt(e.coins)} Coins. Today's ${s?.rewards.symbol ?? 'NVDA'} limit is reached — more ${s?.rewards.symbol ?? 'NVDA'} after the daily reset (see Rewards).`,
+            'good',
+          );
+          break;
+        }
         this.toast(
           `Harvest! +${formatInt(e.coins)} Coins · +${units} ${s?.rewards.symbol ?? 'NVDA'} (${formatUsd(e.usd)})${e.boosted ? ' · Beginner boost' : ''}`,
           'good',

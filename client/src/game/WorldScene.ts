@@ -13,6 +13,9 @@ import {
   TILE as TILE_PX,
   allSlots,
   calendar,
+  canSleep,
+  earliestBedtime,
+  formatClock,
   getItem,
   isCoolingUnit,
   isShopOpen,
@@ -1565,12 +1568,20 @@ export class WorldScene extends Phaser.Scene {
 
 function zonePrompt(z: Zone, scene: WorldScene, s: StateDTO): Omit<Prompt, 'screen'> {
   const a = z.action;
-  if (a === 'sleep')
+  if (a === 'sleep') {
+    const minute = store.displayMinute();
+    if (!canSleep(s.farm.day, minute, s.farm.energy))
+      return {
+        title: 'Your garage',
+        detail: `Too early for bed — you can sleep from ${formatClock(earliestBedtime(s.farm.day, s.farm.energy))}.`,
+        action: 'Check bedtime',
+      };
     return {
       title: 'Your garage',
       detail: 'Sleep until 6:00 AM. Rigs keep working.',
       action: 'Go to bed',
     };
+  }
   if (a === 'mailbox')
     return {
       title: 'Mailbox',

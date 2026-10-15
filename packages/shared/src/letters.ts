@@ -31,7 +31,7 @@ const T: Record<string, Template> = {
       'Quick tips, because nobody gave Ray any:\n' +
       '• Coins are for buying stuff in town. Rigs pay Coins every harvest.\n' +
       '• Rigs also pay a tiny bit of NVDA (NVIDIA Stock Tokens). It piles up in your Rewards.\n' +
-      '• Save up $5 and send it to your wallet anytime. The Withdraw bar shows how close you are.\n\n— Mia',
+      '• Save up $5 and send it to your wallet. Brand-new farms wait a few days before their first withdrawal. The Withdraw bar shows how close you are.\n\n— Mia',
   }),
   ray_room_to_grow: () => ({
     from: 'Uncle Ray',
@@ -69,10 +69,39 @@ const T: Record<string, Template> = {
     subject: `Today's job: ${p.title}`,
     body: `${p.description}\n\nReward: ${p.reward}. This job expires tonight.`,
   }),
-  power_bill: (p) => ({
+  power_bill: (p) => {
+    const unpaid = Number(p.unpaid);
+    const carried = Number(p.carried ?? 0);
+    const n = (x: number) => x.toLocaleString('en-US');
+    const lines = [
+      `You used ${p.kwh} kWh this week.${carried > 0 ? ` With the ${n(carried)} Coins you still owed, the bill comes to ${p.coins} Coins.` : ` That's ${p.coins} Coins.`}`,
+    ];
+    // cut: 1 = cut off this morning (a separate letter explains), 2 = still cut off.
+    if (unpaid > 0 && Number(p.cut) === 1)
+      lines.push(
+        `It couldn't be paid in full again. You now owe me ${n(unpaid)} Coins, and that's two bills in a row — see my other letter.`,
+      );
+    else if (unpaid > 0 && Number(p.cut) === 2)
+      lines.push(
+        `Still not paid in full: you owe me ${n(unpaid)} Coins, and your power stays off until it's settled. Pay what you can at my Substation.`,
+      );
+    else if (unpaid > 0)
+      lines.push(
+        `I took what you had, but you're still ${n(unpaid)} Coins short. Pay it at my Substation anytime. If next week's bill can't be paid either, I cut your power until you settle up.`,
+      );
+    else lines.push('Paid automatically. Thanks for paying on time!');
+    if (Number(p.restored) > 0)
+      lines.push("You're all square again, so your power is back on. Switch your rigs on!");
+    return {
+      from: 'Vera, Power Substation',
+      subject: 'Your weekly power bill',
+      body: `${lines.join('\n\n')}\n\n— Vera`,
+    };
+  },
+  power_cut: (p) => ({
     from: 'Vera, Power Substation',
-    subject: 'Your weekly power bill',
-    body: `You used ${p.kwh} kWh this week. That's ${p.coins} Coins, paid automatically.${Number(p.unpaid) > 0 ? ` You were short ${p.unpaid} Coins, so I added it to next week. Don't make me come up there.` : ' Thanks for paying on time!'}\n\n— Vera`,
+    subject: 'Your power is cut off',
+    body: `Two power bills in a row went unpaid, so I switched off your line. Your rigs stay off until you pay the ${p.owed} Coins you owe.\n\nCome to the Power Substation and pay what you can — once the bill is paid off, the power comes right back. Shiny scraps, Coffee Rush shifts and selling spare parts can help you catch up.\n\n— Vera`,
   }),
   breaker_tripped: (p) => ({
     from: 'Vera, Power Substation',

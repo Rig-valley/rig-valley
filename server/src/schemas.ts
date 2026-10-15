@@ -1,6 +1,12 @@
 /** Request validation. Anything not matching is rejected before reaching the engine. */
 import { z } from 'zod';
-import { HAIR_COLORS, HATS, NPC_IDS } from '@rig-valley/shared';
+import {
+  COFFEE_RUSH_MAX_KEYS,
+  COFFEE_RUSH_SHIFT_MS,
+  HAIR_COLORS,
+  HATS,
+  NPC_IDS,
+} from '@rig-valley/shared';
 
 const int = z.number().int().min(-10_000).max(10_000);
 const tile = z.number().int().min(0).max(200);
@@ -44,12 +50,25 @@ export const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('read_mail'), mailId: z.number().int().positive() }),
   z.object({ type: z.literal('delete_mail'), mailId: z.number().int().positive() }),
   z.object({ type: z.literal('unlock_stage'), stage: z.number().int().min(2).max(4) }),
+  z.object({ type: z.literal('minigame_start'), game: z.literal('coffee_rush') }),
   z.object({
     type: z.literal('minigame'),
     game: z.literal('coffee_rush'),
-    score: z.number().int().min(0).max(100),
-    perfect: z.number().int().min(0).max(100).optional(),
+    // [key 0-3, ms since "Go!"]; presses after the shift ended are ignored by the replay.
+    presses: z
+      .array(
+        z.tuple([
+          z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+          z
+            .number()
+            .int()
+            .min(0)
+            .max(COFFEE_RUSH_SHIFT_MS + 5_000),
+        ]),
+      )
+      .max(COFFEE_RUSH_MAX_KEYS),
   }),
+  z.object({ type: z.literal('pay_bill') }),
   z.object({ type: z.literal('scavenge'), spot: z.number().int().min(0).max(999) }),
   z.object({ type: z.literal('festival_join'), giftItemId: itemId.optional() }),
   z.object({ type: z.literal('speed_race') }),
@@ -64,6 +83,7 @@ export const createFarmSchema = z.object({
     hair: z.enum(HAIR_COLORS.map((h) => h.id) as [string, ...string[]]),
     hat: z.enum(['none', 'cap', 'beanie', 'straw']),
   }),
+  captchaToken: z.string().max(4096).optional(),
 });
 
 export const verifySchema = z.object({
@@ -86,6 +106,12 @@ export const adminConfigSchema = z.object({
       boostUsdPerHarvest: z.number().min(0).max(10),
       boostHarvestCount: z.number().int().min(0).max(10_000),
       withdrawMinUsd: z.number().min(0.01).max(10_000),
+      dailyNvdaHarvests: z.number().int().min(0).max(100_000).optional(),
+      withdrawMinFarmAgeHours: z
+        .number()
+        .min(0)
+        .max(24 * 365)
+        .optional(),
     })
     .optional(),
   market: z
@@ -103,4 +129,5 @@ export const adminConfigSchema = z.object({
     .optional(),
   withdrawalsPaused: z.boolean().optional(),
   alertThresholdUnits: unitsString.optional(),
+  relayerAlertWei: unitsString.optional(),
 });

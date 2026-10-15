@@ -4,6 +4,10 @@
  */
 import {
   ENERGY_COST,
+  REAL_MS_PER_GAME_MINUTE,
+  canSleep,
+  earliestBedtime,
+  formatDuration,
   SCRAPS_PER_DAY,
   SCRAP_SET_BONUS,
   SCRAP_SPOTS,
@@ -153,6 +157,8 @@ export function currentObjective(
       target: z('sleep'),
     };
 
+  const canSleepNow = canSleep(f.day, minute, f.energy);
+  const bedtime = earliestBedtime(f.day, f.energy);
   const active = (id: string) => s.quests.find((q) => q.questId === id && q.state === 'active');
   const done = (id: string) => s.quests.some((q) => q.questId === id && q.state === 'done');
   const cal = calendar(f.day);
@@ -166,7 +172,7 @@ export function currentObjective(
         ? `Walk into town (follow the road north) and press E at the ${shop.name}.`
         : shop.closedOn !== cal.weekdayIndex && minute < shop.open
           ? `The ${shop.name} opens at ${shopHoursText(shop).split(' – ')[0]}. Look after your rigs until then, or head over and wait.`
-          : `The ${shop.name} is closed right now (${shopHoursText(shop)}). Come back when it opens — or sleep until morning.`,
+          : `The ${shop.name} is closed right now (${shopHoursText(shop)}). Come back when it opens${canSleepNow ? ' — or sleep until morning' : ''}.`,
       target: open ? (pts.npcs.get(npc) ?? z(`shop:${shopId}`)) : z(`shop:${shopId}`),
     };
   };
@@ -190,6 +196,13 @@ export function currentObjective(
         title,
         detail: `${head} Grab a Coffee (+20 Energy) at Bo's café, or sleep for a full refill.`,
         target: pts.npcs.get('bo') ?? z('shop:cafe'),
+      };
+    if (!canSleepNow)
+      return {
+        id: 'rest_wait',
+        title,
+        detail: `${head} You can go to bed from ${formatClock(bedtime)}. Until then, shiny scraps and chats with folks in town cost no Energy.`,
+        target: nearestScrap(),
       };
     return {
       id: 'rest_sleep',
@@ -316,10 +329,18 @@ export function currentObjective(
       };
     const friend = makeFriends();
     if (friend) return friend;
+    const tip = allowGrow ? '' : ' Tip: more rigs earn more Coins (Mia sells parts).';
+    if (!canSleepNow)
+      return {
+        id: 'earn_wait_bed',
+        title: 'Let your rigs work',
+        detail: `You've done everything for now — your rigs keep earning while you play. Bedtime is from ${formatClock(bedtime)} (about ${formatDuration((bedtime - minute) * REAL_MS_PER_GAME_MINUTE)} of play). Meanwhile, check the Market Board or tidy up your rigs.${tip}`,
+        target: z('sleep'),
+      };
     return {
       id: 'earn_sleep',
       title: 'Let your rigs work',
-      detail: `You've done everything for today. Rigs keep earning overnight — sleep at the garage door (E) to skip ahead. ${allowGrow ? '' : 'Tip: more rigs earn more Coins (Mia sells parts).'}`,
+      detail: `You've done everything for today. Rigs keep earning overnight — sleep at the garage door (E) to skip ahead.${tip}`,
       target: z('sleep'),
     };
   };
@@ -427,6 +448,35 @@ export function currentObjective(
         return null;
     }
   }
+
+  // ------------------------------------------------------------------ power bill
+  /** Vera's substation: pay off what's owed (part payments are fine). */
+  const payBill = (title: string, why: string): Objective => {
+    const shop = SHOPS.substation;
+    const open = isShopOpen(shop, minute, cal.weekdayIndex);
+    return {
+      id: 'pay_bill',
+      title,
+      detail: open
+        ? `${why} Walk to Vera's Power Substation and press E → "Pay bill". You have ${formatInt(f.coins)} Coins.`
+        : `${why} Vera's Power Substation is closed right now (${shopHoursText(shop)}) — come back when it opens.`,
+      target: open ? (pts.npcs.get('vera') ?? z('shop:substation')) : z('shop:substation'),
+    };
+  };
+  if (f.powerCut) {
+    const why = `Vera cut your power: pay the ${formatInt(f.billDebt)} Coins you owe to switch your rigs back on.`;
+    if (f.coins > 0) return payBill('Pay your power bill', why);
+    return earn(why, false);
+  }
+  if (
+    f.billDebt > 0 &&
+    f.coins >= f.billDebt &&
+    isShopOpen(SHOPS.substation, minute, cal.weekdayIndex)
+  )
+    return payBill(
+      'Pay off your power bill',
+      `You owe Vera ${formatInt(f.billDebt)} Coins. Two short bills in a row and she cuts your power.`,
+    );
 
   // ------------------------------------------------------------------ story
   if (active('main_meet_town')) return shopTarget('hardware', 'mia', 'Meet Mia in town');

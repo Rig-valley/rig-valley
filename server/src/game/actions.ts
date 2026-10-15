@@ -1,6 +1,10 @@
 /** Player actions. Every rule is validated here — the client is never trusted. */
+import { randomInt } from 'node:crypto';
 import {
   BOOT_MINUTES,
+  COFFEE_RUSH_COUNTDOWN_MS,
+  COFFEE_RUSH_PAY_WINDOW_MS,
+  COFFEE_RUSH_SHIFT_MS,
   ENERGY_COST,
   FRESH_PASTE,
   FESTIVALS,
@@ -19,6 +23,7 @@ import {
   WEATHER_INFO,
   calendar,
   canInstall,
+  canSleep,
   festivalToday,
   friendshipLevel,
   getItem,
@@ -33,6 +38,7 @@ import {
   maxShopRarityForStage,
   newRig,
   partSlotOf,
+  playCoffeeRush,
   powerUpgradeDiscount,
   rarityRank,
   repairDiscount,
@@ -45,6 +51,7 @@ import {
   slotAt,
   stageDef,
   findQuest,
+  tooEarlyToSleepText,
   type GameAction,
   type NpcId,
   type ShopContext,
@@ -76,6 +83,11 @@ import {
 } from './quests.js';
 import { sleep } from './overnight.js';
 import { nextRigId, type FarmState } from './state.js';
+
+/** Timer jitter allowed between the player's browser and the server. */
+const RUSH_CLOCK_SLACK_MS = 750;
+/** The browser's clock can run a few game minutes ahead of the server's: don't refuse bed over it. */
+const BEDTIME_GRACE_MINUTES = 10;
 
 function shopCtx(s: FarmState): ShopContext {
   return { stage: s.farm.stage, friendship: Object.fromEntries(s.relations) };
@@ -213,6 +225,11 @@ export async function applyAction(s: FarmState, ctx: EngineCtx, a: GameAction): 
         if (rig.condition <= 0) fail('broken', 'This rig is broken. Repair it first.');
         if (rig.overheat)
           fail('overheat', 'Too hot! Clean, repaste or repair it before switching it back on.');
+        if (f.flags.powerCut)
+          fail(
+            'power_cut',
+            `Vera cut your power over the unpaid bill. Pay the ${f.flags.billDebt.toLocaleString('en-US')} Coins you owe at the Power Substation first.`,
+          );
         if (rig.powered) break;
         rig.powered = true;
         rig.bootRemaining = BOOT_MINUTES;
@@ -311,6 +328,8 @@ export async function applyAction(s: FarmState, ctx: EngineCtx, a: GameAction): 
 
     // ------------------------------------------------------------------ daily life
     case 'sleep': {
+      if (!canSleep(f.day, f.minute + BEDTIME_GRACE_MINUTES, f.energy))
+        fail('too_early', tooEarlyToSleepText());
       sleep(s, ctx, false);
       break;
     }
@@ -427,6 +446,30 @@ export async function applyAction(s: FarmState, ctx: EngineCtx, a: GameAction): 
       toast(ctx, `${up.name} installed! +${up.watts} W capacity.`, 'good');
       break;
     }
+    case 'pay_bill': {
+      requireOpen(s, 'substation');
+      const owed = f.flags.billDebt;
+      if (owed <= 0) fail('no_debt', "You don't owe Vera anything. She's almost disappointed.");
+      const pay = Math.min(owed, Math.max(0, f.coins));
+      if (pay <= 0)
+        fail('no_coins', `You owe ${owed.toLocaleString('en-US')} Coins but have none.`);
+      addCoins(s, -pay, 'power_bill_debt');
+      f.flags.billDebt = owed - pay;
+      if (f.flags.billDebt > 0) {
+        toast(
+          ctx,
+          `Paid ${pay.toLocaleString('en-US')} Coins. You still owe Vera ${f.flags.billDebt.toLocaleString('en-US')}.`,
+          'info',
+        );
+        break;
+      }
+      f.flags.unpaidBills = 0;
+      if (f.flags.powerCut) {
+        f.flags.powerCut = false;
+        toast(ctx, 'Bill paid off! Your power is back on — switch your rigs on again.', 'good');
+      } else toast(ctx, 'Bill paid off. Vera gives you an approving nod.', 'good');
+      break;
+    }
 
     // ------------------------------------------------------------------ NPCs
     case 'talk': {
@@ -533,18 +576,39 @@ export async function applyAction(s: FarmState, ctx: EngineCtx, a: GameAction): 
     }
 
     // ------------------------------------------------------------------ fun
-    case 'minigame': {
+    case 'minigame_start': {
       const game = MINIGAMES[a.game];
       requireOpen(s, 'cafe');
       if (f.flags.daily.minigame)
         fail('done', 'Bo says one shift a day is plenty. Come back tomorrow!');
       spendEnergy(s, game.energy);
       f.flags.daily.minigame = true;
-      const score = Math.max(0, Math.min(game.maxScore, Math.floor(a.score)));
-      const perfect = Math.max(0, Math.min(score, Math.floor(a.perfect ?? 0)));
+      // The orders come from this seed; the server replays the shift from the key log.
+      f.flags.daily.rush = { seed: randomInt(1, 2 ** 31), startedAt: ctx.now, done: false };
+      break;
+    }
+    case 'minigame': {
+      const game = MINIGAMES[a.game];
+      const rush = f.flags.daily.rush;
+      if (!rush || rush.done) fail('no_shift', 'Talk to Bo at the café to start a shift first.');
+      if (ctx.now - rush.startedAt > COFFEE_RUSH_PAY_WINDOW_MS)
+        fail('shift_over', 'That shift is long over — Bo covered for you. Come back tomorrow!');
+      const presses = a.presses;
+      for (let i = 1; i < presses.length; i++) {
+        if (presses[i]![1] < presses[i - 1]![1])
+          fail('bad_shift', "Bo couldn't read that order slip.");
+      }
+      // Every press needs real time to have happened: the countdown plus the shift so far.
+      const lastAt = presses.length
+        ? Math.min(presses[presses.length - 1]![1], COFFEE_RUSH_SHIFT_MS)
+        : 0;
+      if (ctx.now - rush.startedAt < COFFEE_RUSH_COUNTDOWN_MS + lastAt - RUSH_CLOCK_SLACK_MS)
+        fail('bad_shift', "Bo didn't see you make those drinks. Try finishing the shift again.");
+      rush.done = true;
+      const { score, perfect } = playCoffeeRush(rush.seed, presses);
       const pay = score * game.coinsPerPoint;
       const tip = perfect * game.tipPerPerfect;
-      addCoins(s, pay + tip, 'minigame:coffee_rush');
+      if (pay + tip > 0) addCoins(s, pay + tip, 'minigame:coffee_rush');
       addFriendship(s, ctx, 'bo', score >= 8 ? 10 : 4);
       toast(
         ctx,

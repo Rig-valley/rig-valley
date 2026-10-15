@@ -125,7 +125,8 @@ Numbers use English formatting: `12,480` and `0.32`.
 - **Shop hours:** Hardware Store 9 AM–5 PM, Repair Shop 10 AM–6 PM, Miner's Café until 10 PM, Market Board always open. One closed day per week for some shops.
 - **Overnight processing (on sleep):** advance rig cycles, apply condition decay and dust, roll tomorrow's weather, accrue power bill, update pending NVDA, deliver mail.
 - **Mailbox:** daily letters (quests, bills, NPC notes, event news). Primary way to guide players without noisy tutorials.
-- **No daily NVDA cap** (decided). See §9 for safety levers.
+- **Bedtime:** sleep from 8:00 PM, or from 2:00 PM when worn out (Energy ≤ 30). Day 1 is free (tutorial night). Stops back-to-back day skipping.
+- **Daily NVDA limit per farm** (added after the launch audit): 24 NVDA-paying harvests per UTC day by default, admin-editable; later harvests pay Coins only. See §9.
 
 ---
 
@@ -173,7 +174,7 @@ Placeable items that cool an area around them (3×3 at level 1, larger at higher
 - Garage starts at **500 W capacity**.
 - If total draw exceeds capacity, the **breaker trips at night** and all rigs stop until morning.
 - Raise capacity via wiring upgrades, rooftop solar, or contracts at the Power Substation.
-- **Weekly power bill** in Coins.
+- **Weekly power bill** in Coins (paid automatically on Monday mornings). What can't be paid is owed to Vera; two short bills in a row cut the power until the debt is paid at her Substation.
 
 ### Energy cost per action
 | Action | Energy |
@@ -213,7 +214,7 @@ NPC shop (not player-to-player). Buy/sell prices **fluctuate daily** and by seas
 - **Beginner boost:** first **60 harvests** pay **$0.08** each (~10–12 h of play to reach the first $5).
 - **Normal rate:** **$0.02** per harvest (~40 h with starter rigs per $5; faster with upgrades).
 - Pending balance stored in **NVDA units**, displayed with a USD estimate.
-- **Withdraw:** manual button, unlocks at **≥ $5** equivalent. No other requirement. Shows amount, destination address, then player signs.
+- **Withdraw:** manual button, unlocks at **≥ $5** equivalent, and once the farm is **3 days old** (admin-editable). Shows amount, destination address, then player signs.
 - **Gas:** sponsored by the operator for every withdrawal. Sponsorship policy must only cover calls to the distribution contract's claim function.
 - UI states: locked (`$1.40 more to unlock`), unlocked (neon), pending tx, success with explorer link, withdrawal history.
 

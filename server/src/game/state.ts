@@ -32,6 +32,8 @@ export interface DailyFlags {
   harvests: number;
   /** Scrap spots already searched today (missing on saves from before scraps existed). */
   scavenged?: number[];
+  /** Today's Coffee Rush shift: the seed its orders come from and when it started (real ms). */
+  rush?: { seed: number; startedAt: number; done: boolean };
 }
 
 export interface FarmFlags {
@@ -45,6 +47,15 @@ export interface FarmFlags {
   raceWon: boolean;
   /** Harvests yesterday, for the morning summary. */
   harvestsYesterday: number;
+  /** Power bills in a row that couldn't be paid in full. Two = Vera cuts the power. */
+  unpaidBills: number;
+  /** Power is cut over unpaid bills: rigs can't be switched on until the debt is paid. */
+  powerCut: boolean;
+  /** UTC day (see rewardDay) and how many harvests paid NVDA on it. */
+  nvdaDay: string;
+  nvdaHarvests: number;
+  /** Harvests past the daily NVDA limit (Coins only). They don't use up the beginner boost. */
+  coinOnlyHarvests: number;
 }
 
 export interface FarmRow {
@@ -65,6 +76,8 @@ export interface FarmRow {
   powerKwh: number;
   tutorialStep: number;
   harvestCount: number;
+  /** When the farm was created (real ms). */
+  createdAt: number;
   flags: FarmFlags;
 }
 
@@ -154,6 +167,11 @@ export function defaultFlags(day: number, hat: HatId): FarmFlags {
     rareRestockDay: 0,
     raceWon: false,
     harvestsYesterday: 0,
+    unpaidBills: 0,
+    powerCut: false,
+    nvdaDay: '',
+    nvdaHarvests: 0,
+    coinOnlyHarvests: 0,
   };
 }
 
@@ -178,6 +196,7 @@ interface FarmDbRow {
   tutorial_step: number;
   harvest_count: number;
   flags: FarmFlags;
+  created_at: Date | string;
 }
 
 export async function findFarmId(q: Queryable, address: string): Promise<number | null> {
@@ -265,6 +284,7 @@ export async function loadState(q: Queryable, farmId: number, lock = true): Prom
     powerKwh: Number(f.power_kwh),
     tutorialStep: Number(f.tutorial_step),
     harvestCount: Number(f.harvest_count),
+    createdAt: new Date(f.created_at).getTime(),
     flags: { ...defaultFlags(Number(f.day), 'none'), ...(f.flags ?? {}) },
   };
 

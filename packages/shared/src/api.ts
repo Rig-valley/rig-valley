@@ -3,7 +3,7 @@ import type { HairColorId, HatId } from './items.js';
 import type { NpcId, ShopId } from './npcs.js';
 import type { CoolingUnitData, RigData, RigStatus, TempBreakdown } from './rigs.js';
 import type { Weather } from './weather.js';
-import type { FestivalId } from './events.js';
+import type { FestivalId, RushPress } from './events.js';
 import type { RewardConfig, MarketConfig, MarketQuote } from './economy.js';
 
 export interface CharacterDTO {
@@ -34,6 +34,10 @@ export interface FarmDTO {
   tutorialStep: number;
   harvestCount: number;
   boxOpened: boolean;
+  /** Power bill Coins still owed. */
+  billDebt: number;
+  /** Vera cut the power over unpaid bills: rigs can't run until the debt is paid. */
+  powerCut: boolean;
   /** Today's one-per-day actions. */
   daily: {
     minigamePlayed: boolean;
@@ -42,6 +46,8 @@ export interface FarmDTO {
     raceDone: boolean;
     /** Scrap spots (indices into SCRAP_SPOTS) still sparkling today. */
     scraps: number[];
+    /** The Coffee Rush shift in progress (started, not yet paid). */
+    coffeeRush: { seed: number; startedAt: number } | null;
   };
   /** Ever-earned unlocks. */
   ownedHats: HatId[];
@@ -106,6 +112,13 @@ export interface RewardsSummaryDTO {
   backlogUsd: number;
   boostLeft: number;
   usdPerHarvest: number;
+  /** Harvests that paid NVDA today (UTC day), and the daily limit (0 = no limit). */
+  nvdaHarvestsToday: number;
+  nvdaHarvestsPerDay: number;
+  /** When the daily NVDA harvest limit resets (ms since epoch, next UTC midnight). */
+  nvdaLimitResetsAt: number;
+  /** New farms wait before their first withdrawal: when it opens (ms), or null when open. */
+  withdrawOpensAt: number | null;
 }
 
 export interface FestivalStateDTO {
@@ -163,7 +176,9 @@ export type GameAction =
   | { type: 'read_mail'; mailId: number }
   | { type: 'delete_mail'; mailId: number }
   | { type: 'unlock_stage'; stage: number }
-  | { type: 'minigame'; game: 'coffee_rush'; score: number; perfect?: number }
+  | { type: 'minigame_start'; game: 'coffee_rush' }
+  | { type: 'minigame'; game: 'coffee_rush'; presses: RushPress[] }
+  | { type: 'pay_bill' }
   | { type: 'scavenge'; spot: number }
   | { type: 'festival_join'; giftItemId?: string }
   | { type: 'speed_race' }
@@ -179,6 +194,8 @@ export type GameEvent =
       nvdaUnits: string;
       usd: number;
       boosted: boolean;
+      /** Today's NVDA harvest limit was reached: this harvest paid Coins only. */
+      capped?: boolean;
     }
   | { kind: 'dialogue'; npc: NpcId; text: string }
   | { kind: 'sleep'; summary: SleepSummary }
@@ -201,6 +218,10 @@ export interface SleepSummary {
   outage: boolean;
   tripped: boolean;
   bill: number | null;
+  /** Part of this morning's bill that couldn't be paid (now owed). */
+  billUnpaid: number;
+  /** Vera cut the power this morning over unpaid bills. */
+  powerCut: boolean;
   harvestsYesterday: number;
 }
 
@@ -227,6 +248,8 @@ export interface MeDTO {
 export interface CreateFarmRequest {
   farmName: string;
   character: CharacterDTO;
+  /** Cloudflare Turnstile token, when the server asks for one (PublicConfigDTO.captchaSiteKey). */
+  captchaToken?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +330,8 @@ export interface PublicConfigDTO {
   chain: ChainInfoDTO | null;
   symbol: string;
   decimals: number;
+  /** Cloudflare Turnstile site key: when set, creating a farm needs a captcha token. */
+  captchaSiteKey: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +351,8 @@ export interface AdminConfigDTO {
   market: MarketConfig;
   withdrawalsPaused: boolean;
   alertThresholdUnits: string;
+  /** Alert when the gas relayer's ETH balance is below this (wei). */
+  relayerAlertWei: string;
 }
 
 export interface AdminDashboardDTO {
@@ -342,6 +369,10 @@ export interface AdminDashboardDTO {
   contractBalanceUnits: string | null;
   contractPaused: boolean | null;
   lowBalanceAlert: boolean;
+  /** Gas relayer: address and ETH balance (wei), null when there is no relayer. */
+  relayerAddress: string | null;
+  relayerBalanceWei: string | null;
+  lowRelayerAlert: boolean;
   withdrawalsPaused: boolean;
   players: number;
   harvestsToday: number;

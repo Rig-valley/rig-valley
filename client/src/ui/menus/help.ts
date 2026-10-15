@@ -62,7 +62,7 @@ export function openHowToPlay(): Promise<void> {
       h(
         'p',
         { class: 'dim' },
-        'Time stops while a menu is open, and the world waits while you are away.',
+        'Time stops while a menu is open, and the world waits while you are away. Bed opens at 8:00 PM (from 2:00 PM if you are worn out); rigs keep working all day.',
       ),
       h('div', { class: 'row', style: 'justify-content:flex-end' }, ok),
     );

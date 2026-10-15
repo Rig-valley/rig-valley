@@ -2,13 +2,24 @@
  * Coffee Rush: Bo's odd job at the café. Make drinks by pressing the arrow keys in
  * order; orders made without a slip earn tips. Juicy on purpose: countdown, filling
  * cup, combo streak, popups, shake on mistakes and a star rating at the end.
+ *
+ * The server starts the shift and picks the orders (from a seed); the client sends back
+ * every key press with its time, and the server replays the shift to work out the pay.
  */
-import { MINIGAMES } from '@rig-valley/shared';
+import {
+  COFFEE_RUSH_COUNTDOWN_MS,
+  COFFEE_RUSH_SHIFT_MS,
+  MINIGAMES,
+  coffeeRushOrders,
+  type RushKey,
+  type RushPress,
+} from '@rig-valley/shared';
 import { store } from '../../store';
 import { sfx } from '../../audio';
 import { clear, h, portrait } from '../dom';
 import { openModal } from '../modal';
 
+/** Index = the key code the server uses (0 up, 1 down, 2 left, 3 right). */
 const ARROWS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'] as const;
 type Arrow = (typeof ARROWS)[number];
 const GLYPH: Record<Arrow, string> = {
@@ -35,7 +46,7 @@ const DRINKS = [
 ];
 const CUSTOMERS = ['Mina', 'Theo', 'Rosa', 'Pip', 'Juno', 'Ezra', 'Wren', 'Sol', 'Nico', 'Ivy'];
 const DRINK_COLOR = ['#94504a', '#5a2e2b', '#6b3a2e', '#2a1a14', '#cf8556', '#b8763a', '#ffd685'];
-const SHIFT_MS = 30_000;
+const SHIFT_MS = COFFEE_RUSH_SHIFT_MS;
 
 const pick = <T>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)]!;
 
@@ -115,8 +126,13 @@ export function openCoffeeRush(): void {
   let seq: Arrow[] = [];
   let pos = 0;
   let deadline = 0;
+  let goAt = 0;
   let timer = 0;
   let running = false;
+  /** Between two orders: key presses are ignored (and not sent). */
+  let between = false;
+  let orders: RushKey[][] = [];
+  const presses: RushPress[] = [];
   let color = DRINK_COLOR[0]!;
   const waiting: string[] = [];
   /** Next customer in line, never someone already waiting. */
@@ -177,9 +193,8 @@ export function openCoffeeRush(): void {
     tipsEl.textContent = String(perfect * game.tipPerPerfect);
   };
   const newOrder = () => {
-    const round = score + 1;
-    const len = 3 + Math.min(3, Math.floor(round / 3));
-    seq = Array.from({ length: len }, () => pick(ARROWS));
+    seq = (orders[score] ?? []).map((k) => ARROWS[k]!);
+    between = false;
     pos = 0;
     slipped = false;
     color = pick(DRINK_COLOR);
@@ -217,6 +232,7 @@ export function openCoffeeRush(): void {
     clear(stage);
     keys.remove();
     stage.classList.add('result');
+    panel.classList.add('done');
     const starRow = h('div', { class: 'cr-stars' });
     for (let i = 0; i < 3; i++) starRow.append(h('span', { class: i < stars ? 'on' : '' }, '★'));
     stage.append(
@@ -253,8 +269,15 @@ export function openCoffeeRush(): void {
     done.addEventListener('click', async () => {
       done.setAttribute('disabled', '');
       const box = done.getBoundingClientRect();
-      const ok = await store.act({ type: 'minigame', game: 'coffee_rush', score, perfect });
-      if (ok && pay + tips > 0)
+      const ok = await store.act({ type: 'minigame', game: 'coffee_rush', presses });
+      if (!ok) {
+        // The server said no (the error toast explains why): let the player retry or leave.
+        done.removeAttribute('disabled');
+        done.textContent = 'Try again';
+        if (!footer.contains(leave)) footer.prepend(leave);
+        return;
+      }
+      if (pay + tips > 0)
         store.emit('coinBurst', {
           fx: (box.left + box.width / 2) / window.innerWidth,
           fy: box.top / window.innerHeight,
@@ -263,6 +286,8 @@ export function openCoffeeRush(): void {
         });
       m.close();
     });
+    const leave = h('button', { class: 'btn big', type: 'button' }, 'Leave');
+    leave.addEventListener('click', () => m.close());
     done.focus();
   };
 
@@ -274,6 +299,10 @@ export function openCoffeeRush(): void {
     if (!key) return;
     e.preventDefault();
     e.stopPropagation();
+    if (e.repeat || between) return;
+    const at = Math.round(performance.now() - goAt);
+    if (at > SHIFT_MS) return void finish();
+    presses.push([ARROWS.indexOf(key) as RushKey, at]);
     if (key === seq[pos]) {
       pos++;
       sfx('blip');
@@ -294,6 +323,7 @@ export function openCoffeeRush(): void {
       waiting.shift();
       waiting.push(nextCustomer());
       if (score >= game.maxScore) return void finish();
+      between = true;
       window.setTimeout(() => running && newOrder(), 140);
     } else {
       sfx('error');
@@ -307,14 +337,24 @@ export function openCoffeeRush(): void {
     }
   };
 
-  start.addEventListener('click', () => {
+  start.addEventListener('click', async () => {
     start.setAttribute('disabled', '');
+    later.setAttribute('disabled', '');
+    // Bo opens the shift on the server: it uses the Energy and picks today's orders.
+    const ok = await store.act({ type: 'minigame_start', game: 'coffee_rush' });
+    const rush = store.state?.farm.daily.coffeeRush;
+    if (!ok || !rush) {
+      m.close();
+      return;
+    }
+    orders = coffeeRushOrders(rush.seed);
     later.remove();
     how.remove();
     renderQueue();
     drinkName.textContent = 'Get ready…';
     // 3, 2, 1, go!
     const counts = ['3', '2', '1', 'Go!'];
+    const step = COFFEE_RUSH_COUNTDOWN_MS / (counts.length - 1);
     counts.forEach((c, i) =>
       window.setTimeout(() => {
         clear(keys);
@@ -323,14 +363,15 @@ export function openCoffeeRush(): void {
         if (i === counts.length - 1) {
           clear(footer);
           running = true;
-          deadline = performance.now() + SHIFT_MS;
+          goAt = performance.now();
+          deadline = goAt + SHIFT_MS;
           window.addEventListener('keydown', onKey, true);
           timer = window.setInterval(tickTime, 100);
           say('Order up! Go go go!');
           newOrder();
           renderStats();
         }
-      }, i * 600),
+      }, i * step),
     );
   });
 }

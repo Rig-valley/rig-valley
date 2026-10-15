@@ -52,6 +52,11 @@ function state(
     coins?: number;
     minigamePlayed?: boolean;
     scraps?: number[];
+    energy?: number;
+    billDebt?: number;
+    powerCut?: boolean;
+    /** Already chatted with everyone today. */
+    talkedAll?: boolean;
   } = {},
 ): StateDTO {
   return {
@@ -62,7 +67,7 @@ function state(
       farmName: 'T',
       character: { name: 'T', hair: 'ink', hat: 'none' },
       stage: over.stage ?? 1,
-      energy: 100,
+      energy: over.energy ?? 100,
       maxEnergy: 100,
       coins: over.coins ?? 300,
       day: 3,
@@ -77,7 +82,10 @@ function state(
       tutorialStep: over.step ?? 7,
       harvestCount: 1,
       boxOpened: true,
+      billDebt: over.billDebt ?? 0,
+      powerCut: over.powerCut ?? false,
       daily: {
+        coffeeRush: null,
         scraps: over.scraps ?? [],
         minigamePlayed: over.minigamePlayed ?? false,
         festivalJoined: false,
@@ -90,7 +98,15 @@ function state(
     coolingUnits: [],
     decor: [],
     inventory: over.inventory ?? [],
-    relations: [],
+    relations: over.talkedAll
+      ? (['mia', 'bo', 'dex', 'kai', 'vera'] as const).map((npc) => ({
+          npc,
+          points: 0,
+          level: 0,
+          talkedToday: true,
+          giftedToday: false,
+        }))
+      : [],
     quests: over.quests ?? [],
     mail: [],
     rewards: {} as StateDTO['rewards'],
@@ -229,5 +245,67 @@ describe('guide', () => {
 
   it('warns about bedtime late at night', () => {
     expect(currentObjective(state(), points, 25 * 60 + 10)!.id).toBe('late');
+  });
+
+  it('only suggests bed once it is bedtime', () => {
+    const done = [q('main_room_to_grow', 'done')];
+    const working = rigDto({ cpuId: 'cpu_common', powered: true, status: 'mining' });
+    const idle = {
+      quests: done,
+      coins: 100,
+      rigs: [working],
+      minigamePlayed: true,
+      talkedAll: true,
+    };
+    // Everything done at 7 PM: rigs work, bed opens at 8 PM.
+    const wait = currentObjective(state(idle), points, 19 * 60)!;
+    expect(wait.id).toBe('earn_wait_bed');
+    expect(wait.detail).toMatch(/8:00 PM/);
+    expect(currentObjective(state(idle), points, 20 * 60)!.id).toBe('earn_sleep');
+    // Worn out (30 Energy or less): bed from 2 PM.
+    expect(currentObjective(state({ ...idle, energy: 20 }), points, 14 * 60)!.id).toBe(
+      'earn_sleep',
+    );
+    expect(currentObjective(state({ ...idle, energy: 20 }), points, 13 * 60)!.id).toBe(
+      'earn_wait_bed',
+    );
+    // Too tired to build at 10 AM, café out of reach: no "go to bed", but free things to do.
+    const tired = currentObjective(
+      state({
+        quests: [q('main_room_to_grow')],
+        coins: 0,
+        energy: 4,
+        rigs: [rigDto()],
+        inventory: [{ itemId: 'cpu_common', qty: 1 }],
+      }),
+      points,
+      10 * 60,
+    )!;
+    expect(tired.id).toBe('rest_wait');
+    expect(tired.detail).toMatch(/2:00 PM/);
+  });
+
+  it('sends the player to Vera when the power is cut or a bill is owed', () => {
+    const cut = currentObjective(
+      state({ coins: 50, billDebt: 120, powerCut: true }),
+      points,
+      10 * 60,
+    )!;
+    expect(cut.id).toBe('pay_bill');
+    expect(cut.detail).toMatch(/120 Coins/);
+    // Broke and cut off: earn Coins first (the reason stays visible).
+    const broke = currentObjective(
+      state({ coins: 0, billDebt: 120, powerCut: true }),
+      points,
+      10 * 60,
+    )!;
+    expect(broke.goal).toMatch(/cut your power/);
+    // Owing but not cut: a reminder when it's affordable and Vera is open.
+    expect(currentObjective(state({ coins: 500, billDebt: 120 }), points, 10 * 60)!.id).toBe(
+      'pay_bill',
+    );
+    expect(currentObjective(state({ coins: 50, billDebt: 120 }), points, 10 * 60)?.id).not.toBe(
+      'pay_bill',
+    );
   });
 });

@@ -178,6 +178,30 @@ describe('farm lifecycle', () => {
     expect(state.quests.some((q) => q.questId === 'main_meet_town')).toBe(true);
   });
 
+  it('refuses bed before bedtime once the tutorial night is over', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/action',
+      headers: { cookie },
+      payload: { type: 'sleep' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe('too_early');
+    expect(res.json().message).toMatch(/8:00 PM/);
+  });
+
+  it('shows the daily NVDA limit and when withdrawals open for a new farm', async () => {
+    const s = (
+      await app.inject({ method: 'GET', url: '/api/state', headers: { cookie } })
+    ).json() as StateDTO;
+    expect(s.rewards.nvdaHarvestsPerDay).toBe(24);
+    expect(s.rewards.nvdaHarvestsToday).toBe(1); // the tutorial harvest
+    expect(s.rewards.nvdaLimitResetsAt).toBeGreaterThan(Date.now());
+    expect(s.rewards.withdrawOpensAt).toBeGreaterThan(Date.now() + 71 * 3_600_000);
+    expect(s.farm.billDebt).toBe(0);
+    expect(s.farm.powerCut).toBe(false);
+  });
+
   it('advances time only while playing and unpaused', async () => {
     await app.inject({
       method: 'POST',
@@ -292,6 +316,53 @@ describe('farm lifecycle', () => {
   });
 });
 
+describe('captcha', () => {
+  it('asks for a Turnstile token on farm creation when configured', async () => {
+    const withCaptcha = loadConfig({
+      NODE_ENV: 'test',
+      PGLITE_DIR: 'memory',
+      ADMIN_TOKEN: 'test-admin-token-123456',
+      TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+    } as NodeJS.ProcessEnv);
+    const db = await openDb({ pgliteDir: 'memory' });
+    const { app: guarded } = await createServer(withCaptcha, { db });
+    try {
+      const pub = (await guarded.inject({ method: 'GET', url: '/api/config/public' })).json();
+      expect(pub.captchaSiteKey).toBe('1x00000000000000000000AA');
+      const account = privateKeyToAccount(generatePrivateKey());
+      const { nonce } = (await guarded.inject({ method: 'GET', url: '/api/auth/nonce' })).json();
+      const message = createSiweMessage({
+        address: account.address,
+        chainId: withCaptcha.CHAIN_ID,
+        domain: withCaptcha.SIWE_DOMAIN,
+        nonce,
+        uri: withCaptcha.SIWE_URI,
+        version: '1',
+      });
+      const login = await guarded.inject({
+        method: 'POST',
+        url: '/api/auth/verify',
+        payload: { message, signature: await account.signMessage({ message }) },
+      });
+      const cookie = `rv_session=${login.cookies.find((c) => c.name === 'rv_session')!.value}`;
+      const res = await guarded.inject({
+        method: 'POST',
+        url: '/api/farm',
+        headers: { cookie },
+        payload: { farmName: 'Bot Farm', character: { name: 'Bot', hair: 'ink', hat: 'none' } },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toBe('captcha');
+    } finally {
+      await guarded.close();
+    }
+    expect(() =>
+      loadConfig({ NODE_ENV: 'test', TURNSTILE_SITE_KEY: 'x' } as NodeJS.ProcessEnv),
+    ).toThrow(/TURNSTILE/);
+  });
+});
+
 describe('admin', () => {
   it('requires the admin token', async () => {
     expect((await app.inject({ method: 'GET', url: '/api/admin/dashboard' })).statusCode).toBe(401);
@@ -320,5 +391,39 @@ describe('admin', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().rewards.normalUsdPerHarvest).toBe(0.03);
+    // Fields left out keep their values.
+    expect(res.json().rewards.dailyNvdaHarvests).toBe(24);
+    const limits = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/config',
+      headers: { authorization: 'Bearer test-admin-token-123456' },
+      payload: {
+        rewards: {
+          normalUsdPerHarvest: 0.03,
+          boostUsdPerHarvest: 0.1,
+          boostHarvestCount: 50,
+          withdrawMinUsd: 5,
+          dailyNvdaHarvests: 12,
+          withdrawMinFarmAgeHours: 48,
+        },
+        relayerAlertWei: '2000000000000000',
+      },
+    });
+    expect(limits.statusCode).toBe(200);
+    expect(limits.json().rewards).toMatchObject({
+      dailyNvdaHarvests: 12,
+      withdrawMinFarmAgeHours: 48,
+    });
+    expect(limits.json().relayerAlertWei).toBe('2000000000000000');
+    const dash = await app.inject({
+      method: 'GET',
+      url: '/api/admin/dashboard',
+      headers: { authorization: 'Bearer test-admin-token-123456' },
+    });
+    expect(dash.json()).toMatchObject({
+      relayerAddress: null,
+      relayerBalanceWei: null,
+      lowRelayerAlert: false,
+    });
   });
 });

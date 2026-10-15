@@ -137,6 +137,23 @@ export function showModal(
   return m;
 }
 
+/** A message with a single button. Resolves when it closes. */
+export function infoModal(title: string, text: string, okLabel = 'OK'): Promise<void> {
+  return new Promise((resolve) => {
+    const ok = h('button', { class: 'btn primary', type: 'button' }, okLabel);
+    const panel = h(
+      'div',
+      { class: 'panel modal narrow' },
+      h('h2', null, title),
+      h('p', { style: 'white-space: pre-wrap' }, text),
+      h('div', { class: 'row', style: 'justify-content:flex-end' }, ok),
+    );
+    const m = openModal(panel, { onClose: () => resolve() });
+    ok.addEventListener('click', () => m.close());
+    queueMicrotask(() => ok.focus());
+  });
+}
+
 export function confirmModal(
   title: string,
   text: string,

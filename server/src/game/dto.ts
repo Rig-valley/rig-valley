@@ -1,5 +1,6 @@
 /** Build the StateDTO the client renders. */
 import {
+  COFFEE_RUSH_PAY_WINDOW_MS,
   MAX_ENERGY,
   NPC_IDS,
   calendar,
@@ -8,6 +9,8 @@ import {
   festivalToday,
   friendshipLevel,
   powerCapacity,
+  rewardDay,
+  rewardDayResetsAt,
   rigSpeed,
   rigStatus,
   rigWatts,
@@ -36,7 +39,10 @@ export function rewardsSummary(s: FarmState, ctx: DtoCtx): RewardsSummaryDTO {
     ? tokenUnitsToUsd(s.pendingUnits, price, ctx.decimals) + s.backlogUsd
     : s.backlogUsd;
   const cfg = ctx.config.rewards;
-  const boostLeft = Math.max(0, cfg.boostHarvestCount - s.farm.harvestCount);
+  const f = s.farm;
+  const paidHarvests = f.harvestCount - f.flags.coinOnlyHarvests;
+  const boostLeft = Math.max(0, cfg.boostHarvestCount - paidHarvests);
+  const opensAt = f.createdAt + cfg.withdrawMinFarmAgeHours * 3_600_000;
   return {
     enabled: ctx.rewardsEnabled,
     symbol: ctx.symbol,
@@ -50,6 +56,10 @@ export function rewardsSummary(s: FarmState, ctx: DtoCtx): RewardsSummaryDTO {
     backlogUsd: s.backlogUsd,
     boostLeft,
     usdPerHarvest: boostLeft > 0 ? cfg.boostUsdPerHarvest : cfg.normalUsdPerHarvest,
+    nvdaHarvestsToday: f.flags.nvdaDay === rewardDay(ctx.now) ? f.flags.nvdaHarvests : 0,
+    nvdaHarvestsPerDay: cfg.dailyNvdaHarvests,
+    nvdaLimitResetsAt: rewardDayResetsAt(ctx.now),
+    withdrawOpensAt: opensAt > ctx.now ? opensAt : null,
   };
 }
 
@@ -81,6 +91,8 @@ export function toStateDTO(s: FarmState, ctx: DtoCtx): StateDTO {
       tutorialStep: f.tutorialStep,
       harvestCount: f.harvestCount,
       boxOpened: f.flags.boxOpened,
+      billDebt: f.flags.billDebt,
+      powerCut: f.flags.powerCut,
       daily: {
         minigamePlayed: f.flags.daily.minigame,
         festivalJoined: f.flags.daily.festival,
@@ -89,6 +101,12 @@ export function toStateDTO(s: FarmState, ctx: DtoCtx): StateDTO {
         scraps: scrapSpotsFor(f.id, f.day).filter(
           (i) => !(f.flags.daily.scavenged ?? []).includes(i),
         ),
+        coffeeRush:
+          f.flags.daily.rush &&
+          !f.flags.daily.rush.done &&
+          ctx.now - f.flags.daily.rush.startedAt <= COFFEE_RUSH_PAY_WINDOW_MS
+            ? { seed: f.flags.daily.rush.seed, startedAt: f.flags.daily.rush.startedAt }
+            : null,
       },
       ownedHats: f.flags.ownedHats,
     },

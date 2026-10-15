@@ -23,6 +23,31 @@ export function energyAfterSleep(bedMinute: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Bedtime: sleeping skips the night, so it has to be night (or you have to be worn out).
+// Without this, sleeping right after waking up would fast-forward rigs without playing.
+// ---------------------------------------------------------------------------
+/** Normal bedtime: 8:00 PM. */
+export const BEDTIME_MINUTE = 20 * 60;
+/** Worn out (Energy at or below TIRED_ENERGY): bed from 2:00 PM. */
+export const TIRED_BEDTIME_MINUTE = 14 * 60;
+export const TIRED_ENERGY = 30;
+
+/** Earliest minute the player may go to bed today. Day 1 (the tutorial night) has no limit. */
+export function earliestBedtime(day: number, energy: number): number {
+  if (day <= 1) return 0;
+  return energy <= TIRED_ENERGY ? TIRED_BEDTIME_MINUTE : BEDTIME_MINUTE;
+}
+
+export function canSleep(day: number, minute: number, energy: number): boolean {
+  return minute >= earliestBedtime(day, energy);
+}
+
+/** English explanation shown when it's too early for bed. */
+export function tooEarlyToSleepText(): string {
+  return `It's too early for bed. You can sleep from 8:00 PM — or from 2:00 PM if you're worn out (${TIRED_ENERGY} Energy or less).`;
+}
+
+// ---------------------------------------------------------------------------
 // Power (MASTERPLAN §7)
 // ---------------------------------------------------------------------------
 export const START_POWER_CAPACITY = 500;
@@ -121,6 +146,13 @@ export interface RewardConfig {
   boostHarvestCount: number;
   /** Minimum USD value to unlock Withdraw. */
   withdrawMinUsd: number;
+  /**
+   * Harvests per farm per UTC day that pay NVDA (0 = no limit). Later harvests still pay
+   * Coins. Keeps the reward budget safe from scripted farms.
+   */
+  dailyNvdaHarvests: number;
+  /** A farm must be this many hours old before its first withdrawal (0 = no wait). */
+  withdrawMinFarmAgeHours: number;
 }
 
 export const DEFAULT_REWARD_CONFIG: RewardConfig = {
@@ -128,7 +160,20 @@ export const DEFAULT_REWARD_CONFIG: RewardConfig = {
   boostUsdPerHarvest: 0.08,
   boostHarvestCount: 60,
   withdrawMinUsd: 5,
+  dailyNvdaHarvests: 24,
+  withdrawMinFarmAgeHours: 72,
 };
+
+/** UTC calendar day ("2026-10-15") that the daily NVDA harvest limit counts against. */
+export function rewardDay(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** When the daily NVDA harvest limit resets: the next UTC midnight after `ms`. */
+export function rewardDayResetsAt(ms: number): number {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+}
 
 export function usdForHarvest(
   cfg: RewardConfig,

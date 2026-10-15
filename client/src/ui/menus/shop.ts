@@ -93,7 +93,13 @@ export function openShop(shopId: ShopId): void {
 
   const views: [string, () => void][] = [['Buy', () => renderBuy(content, shopId)]];
   if (shopId === 'repair') views.push(['Repairs', () => renderRepairs(content)]);
-  if (shopId === 'substation') views.unshift(['Power upgrades', () => renderPower(content)]);
+  if (shopId === 'substation') {
+    views.unshift(['Power upgrades', () => renderPower(content)]);
+    // Owing Vera? The bill comes first.
+    const bill: [string, () => void] = ['Power bill', () => renderBill(content)];
+    if ((store.state?.farm.billDebt ?? 0) > 0) views.unshift(bill);
+    else views.splice(1, 0, bill);
+  }
   if (shopId === 'cafe') views.push(['Odd jobs', () => renderCafeJobs(content, () => m)]);
 
   const select = (i: number) => {
@@ -271,6 +277,72 @@ function renderRepairs(el: HTMLElement): void {
       ),
     );
   }
+}
+
+function renderBill(el: HTMLElement): void {
+  const s = store.state!;
+  const debt = s.farm.billDebt;
+  el.append(
+    h(
+      'p',
+      null,
+      `${s.farm.powerKwh} kWh used since the last bill. The bill arrives every Monday morning and is paid automatically from your Coins.`,
+    ),
+  );
+  if (debt <= 0) {
+    el.append(h('p', { class: 'good' }, "You're all paid up. Vera gives you an approving nod."));
+    return;
+  }
+  el.append(
+    s.farm.powerCut
+      ? h(
+          'p',
+          { class: 'bad' },
+          'Your power is cut off. Your rigs stay off until the bill is paid in full.',
+        )
+      : h(
+          'p',
+          { class: 'warn' },
+          "If next Monday's bill can't be paid in full either, Vera cuts your power until you settle up.",
+        ),
+  );
+  const pay = Math.min(debt, Math.max(0, s.farm.coins));
+  const b = h(
+    'button',
+    { class: 'btn small primary', type: 'button', disabled: pay <= 0 },
+    'Pay · ',
+    price(pay, pay <= 0),
+  );
+  b.addEventListener('click', async () => {
+    b.setAttribute('disabled', '');
+    if (await store.act({ type: 'pay_bill' })) sfx('coin');
+    clear(el);
+    renderBill(el);
+  });
+  el.append(
+    h(
+      'div',
+      { class: 'list-item' },
+      icon(ICONS.plug, 32),
+      h(
+        'div',
+        { class: 'grow col', style: 'gap:2px' },
+        h('b', null, 'Owed to Vera'),
+        h('span', { class: 'dim', style: 'font-size:15px' }, `${formatInt(debt)} Coins`),
+      ),
+      b,
+    ),
+  );
+  if (pay < debt)
+    el.append(
+      h(
+        'p',
+        { class: 'dim' },
+        pay > 0
+          ? `You have ${formatInt(s.farm.coins)} Coins. Paying that now leaves ${formatInt(debt - pay)} owed.`
+          : 'You have no Coins right now. Shiny scraps, Coffee Rush shifts and selling spare parts can help.',
+      ),
+    );
 }
 
 function renderPower(el: HTMLElement): void {
