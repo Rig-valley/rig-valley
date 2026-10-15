@@ -42,6 +42,14 @@ panel at `/admin/` and the API at `/api` (`SERVE_STATIC=true`).
    `pnpm --filter @rig-valley/server keys`, stored in `.data/mainnet-keys.env`), `DISTRIBUTOR_ADDRESS`.
 3. `railway up`, then generate a domain and re-check the SIWE/CORS values match it exactly.
 
+### Custom domain (rigvalley.com)
+
+- Railway: `railway domain rigvalley.com --port 8787` → DNS at the registrar (Hostinger):
+  `CNAME @ → <id>.up.railway.app` (Hostinger stores it as ALIAS) and `TXT _railway-verify → <token>`.
+- Server: `SIWE_DOMAIN=rigvalley.com`, `SIWE_URI=https://rigvalley.com`, `CORS_ORIGINS=https://rigvalley.com`,
+  `CANONICAL_HOST=rigvalley.com` (the `*.up.railway.app` address then 301-redirects to the domain).
+- `www.rigvalley.com` needs a second custom domain on the service (plan limit), then a `CNAME www` record.
+
 ## 2. Contract deployment
 
 ```bash
